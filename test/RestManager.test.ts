@@ -120,4 +120,55 @@ describe("RestManager", () => {
 
         expect(maxInFlight).toBeLessThanOrEqual(5);
     });
+
+    describe("per-route rate-limit buckets", () => {
+        it("a 429 on one resource does not delay a request to an unrelated resource", async () => {
+            vi.useFakeTimers();
+            fetchMock.mockImplementation(async (url: string) => {
+                if (url.includes("/chat/channelA/")) {
+                    return jsonResponse({ error: "slow down" }, { status: 429, headers: { "Retry-After": "5" } });
+                }
+                return jsonResponse({ ok: true });
+            });
+
+            const rest = new RestManager("https://bloumechat.com/api/v2", () => "t");
+
+            // Route A gets rate-limited and exhausts its retries (still fake-timers, resolves once we flush).
+            const routeAPromise = rest.request("/chat/channelA/messages", { maxRetries: 0 }).catch(e => e);
+
+            // Route B (different bucket: different second path segment) must resolve immediately,
+            // without waiting on route A's 5s backoff.
+            const routeBPromise = rest.request("/chat/channelB/messages", { maxRetries: 0 });
+
+            await vi.advanceTimersByTimeAsync(0);
+            await expect(routeBPromise).resolves.toEqual({ ok: true });
+
+            await vi.runAllTimersAsync();
+            const errA = await routeAPromise;
+            expect(errA).toBeInstanceOf(RateLimitError);
+        });
+
+        it("a second request to the same rate-limited bucket waits out the backoff before firing", async () => {
+            vi.useFakeTimers();
+            fetchMock
+                .mockResolvedValueOnce(jsonResponse({ error: "slow down" }, { status: 429, headers: { "Retry-After": "2" } }))
+                .mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+            const rest = new RestManager("https://bloumechat.com/api/v2", () => "t");
+
+            // First call: gets 429, exhausts its own retries (maxRetries: 0), but still records
+            // the bucket's backoff for whoever calls next.
+            await rest.request("/servers/s1/roles", { maxRetries: 0 }).catch(() => {});
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+
+            // Second call to the SAME bucket should wait for the recorded backoff before firing.
+            const second = rest.request("/servers/s1/roles");
+            await vi.advanceTimersByTimeAsync(1999);
+            expect(fetchMock).toHaveBeenCalledTimes(1); // still waiting
+
+            await vi.advanceTimersByTimeAsync(1);
+            await expect(second).resolves.toEqual({ ok: true });
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+        });
+    });
 });
