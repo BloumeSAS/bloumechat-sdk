@@ -29,7 +29,7 @@ function sleep(ms: number): Promise<void> {
  * `POST /chat/:channelA/...` and `POST /chat/:channelB/...` back off independently.
  */
 function bucketKeyFor(method: string, path: string): string {
-    const segments = path.split("?")[0].split("/").filter(Boolean);
+    const segments = (path.split("?")[0] ?? path).split("/").filter(Boolean);
     return `${method}:${segments.slice(0, 2).join("/")}`;
 }
 

@@ -31,7 +31,7 @@ describe("Channel", () => {
 
         expect(messages).toHaveLength(1);
         expect(messages[0]).toBeInstanceOf(Message);
-        expect(messages[0].content).toBe("hi");
+        expect(messages[0]!.content).toBe("hi");
     });
 
     it("search() and fetchPins() also wrap results into Message instances", async () => {

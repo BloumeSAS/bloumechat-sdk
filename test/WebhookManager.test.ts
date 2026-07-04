@@ -19,7 +19,7 @@ describe("WebhookManager", () => {
 
         expect(webhooks).toHaveLength(1);
         expect(webhooks[0]).toBeInstanceOf(Webhook);
-        expect(webhooks[0].name).toBe("Logger");
+        expect(webhooks[0]!.name).toBe("Logger");
         expect(manager.cache.get("wh_1")).toBe(webhooks[0]);
     });
 

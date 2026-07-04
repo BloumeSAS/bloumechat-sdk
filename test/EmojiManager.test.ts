@@ -19,7 +19,7 @@ describe("EmojiManager", () => {
 
         expect(emojis).toHaveLength(1);
         expect(emojis[0]).toBeInstanceOf(Emoji);
-        expect(emojis[0].name).toBe("pepe");
+        expect(emojis[0]!.name).toBe("pepe");
         expect(manager.cache.get("emoji_1")).toBe(emojis[0]);
     });
 

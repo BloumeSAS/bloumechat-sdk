@@ -148,7 +148,12 @@ export class BloumeChat extends EventEmitter {
         };
     }
 
-    /** Redact the token in default Node.js console output (`console.log(client)`). */
+    /**
+     * Redact the token in default Node.js console output (`console.log(client)`).
+     * Only ever invoked via Node's runtime symbol lookup (`util.inspect`), so
+     * TypeScript can't see a static reference — hence the suppression below.
+     */
+    // @ts-expect-error -- TS6133: declared but never read (see comment above)
     private [Symbol.for("nodejs.util.inspect.custom")]() {
         return this._toSafeSnapshot();
     }
