@@ -388,7 +388,7 @@ npm run test:watch  # watch mode
 npm run test:coverage
 ```
 
-Every push and pull request runs the [CI workflow](.github/workflows/ci.yml): type-checking, the full test suite across Node 18/20/22, a build, and a dependency audit, plus a coverage report uploaded as a build artifact.
+Every push and pull request runs the [CI workflow](.github/workflows/ci.yml): type-checking, the full test suite across Node 20/22/24, a build, and a dependency audit, plus a coverage report uploaded as a build artifact.
 
 Releases publish automatically and require no manual step: merging a commit to `main` that bumps `version` in `package.json` triggers the [publish workflow](.github/workflows/publish.yml), which re-runs type-checking, tests and the build, publishes to npm with provenance, then tags the commit and creates the matching GitHub Release. A manual GitHub Release (or `workflow_dispatch`) still works too, for one-off/hotfix publishes.
 

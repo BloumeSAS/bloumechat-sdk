@@ -52,7 +52,7 @@
         "url": "https://github.com/BloumeSAS/bloumechat-sdk/issues"
     },
     "engines": {
-        "node": ">=18"
+        "node": ">=20"
     },
     "dependencies": {
         "socket.io-client": "^4.8.3"
