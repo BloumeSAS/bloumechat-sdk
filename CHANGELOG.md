@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-07-05
+
 ### Added
 - `errors/`: `BloumeChatError` (base), `BloumeChatAPIError`, `RateLimitError`, `BloumeChatAuthError`, `BloumeChatTimeoutError` — typed errors instead of generic `Error` throws, so consumers can `instanceof`-check failure modes.
 - `guild.invites` (`InviteManager`), `guild.emojis` (`EmojiManager`), `channel.webhooks` (`WebhookManager`) — cached managers following the existing `RoleManager` pattern. `EmojiManager` also adds emoji creation, which wasn't previously exposed.
