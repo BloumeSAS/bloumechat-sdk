@@ -41,9 +41,13 @@ export class Guild extends Base {
     }
 
     /** Members manager scoped to this guild */
-    get members() { return this.client.members; }
+    get members() {
+        return this.client.members;
+    }
     /** Cached channels belonging to this guild */
-    get channels() { return this.client.channels.cache.filter(c => c.serverId === this.id); }
+    get channels() {
+        return this.client.channels.cache.filter(c => c.serverId === this.id);
+    }
 
     // ─── Server management ───────────────────────────────────────────────────
 
@@ -80,7 +84,9 @@ export class Guild extends Base {
     // ─── Channels ────────────────────────────────────────────────────────────
 
     /** Fetches the server's channel list from the API. */
-    async fetchChannels() { return this.client.channels.fetchForGuild(this.id); }
+    async fetchChannels() {
+        return this.client.channels.fetchForGuild(this.id);
+    }
 
     /**
      * Creates a new channel in the server.
@@ -164,7 +170,10 @@ export class Guild extends Base {
     }
 
     /** Edits an existing role. */
-    async editRole(roleId: string, options: { name?: string; color?: string | null; permissions?: bigint | string; hoist?: boolean }): Promise<Role> {
+    async editRole(
+        roleId: string,
+        options: { name?: string; color?: string | null; permissions?: bigint | string; hoist?: boolean }
+    ): Promise<Role> {
         const { Role } = require("./Role");
         const payload: any = { ...options };
         if (options.permissions !== undefined) payload.permissions = options.permissions.toString();

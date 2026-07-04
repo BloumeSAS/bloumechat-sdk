@@ -1,0 +1,12 @@
+dist
+node_modules
+coverage
+package-lock.json
+
+# Formatted separately / left as-is deliberately (hand-tuned badge layout, YAML
+# workflow comments, JSON files not worth churning on first Prettier adoption).
+.github/
+README.md
+CHANGELOG.md
+package.json
+tsconfig.json

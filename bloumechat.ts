@@ -103,7 +103,9 @@ export class BloumeChat extends EventEmitter {
                     console.warn(`[BloumeChat SDK] Insecure protocol "${protocol}" for ${url} — your bot token will be sent unencrypted.`);
                 }
                 if (!isKnownHost) {
-                    console.warn(`[BloumeChat SDK] baseUrl/socketUrl points to an unrecognized host ("${hostname}"). Your bot token will be sent to this host — make sure this is intentional.`);
+                    console.warn(
+                        `[BloumeChat SDK] baseUrl/socketUrl points to an unrecognized host ("${hostname}"). Your bot token will be sent to this host — make sure this is intentional.`
+                    );
                 }
             } catch {
                 // Malformed URL — let the actual request fail with a clearer error later.
@@ -117,7 +119,9 @@ export class BloumeChat extends EventEmitter {
     }
 
     /** @internal */
-    public getSocket(): Socket | null { return this.socket; }
+    public getSocket(): Socket | null {
+        return this.socket;
+    }
 
     /**
      * Builds a safe, non-circular snapshot of the client: redacts the bot token and
@@ -184,14 +188,16 @@ export class BloumeChat extends EventEmitter {
                     this.emit("reconnect");
                     return;
                 }
-                this.fetchSelf().then(async botUser => {
-                    this.user = botUser;
-                    await this.guilds.fetchAll();
-                    this._isReady = true;
-                    this.readyAt = new Date();
-                    this.emit("ready");
-                    resolve();
-                }).catch(reject);
+                this.fetchSelf()
+                    .then(async botUser => {
+                        this.user = botUser;
+                        await this.guilds.fetchAll();
+                        this._isReady = true;
+                        this.readyAt = new Date();
+                        this.emit("ready");
+                        resolve();
+                    })
+                    .catch(reject);
             });
 
             this.socket.on("connect_error", error => {
@@ -205,7 +211,10 @@ export class BloumeChat extends EventEmitter {
      * Disconnects the bot and cleans up all listeners.
      */
     destroy(): void {
-        if (this.socket) { this.socket.disconnect(); this.socket = null; }
+        if (this.socket) {
+            this.socket.disconnect();
+            this.socket = null;
+        }
         this._isReady = false;
         this.readyAt = null;
         this._token = null;
@@ -234,7 +243,10 @@ export class BloumeChat extends EventEmitter {
      */
     async sendMessage(
         channelId: string,
-        options: string | EmbedBuilder | { content?: string; embeds?: Array<EmbedBuilder | EmbedPayload | Record<string, unknown>>; replyToId?: string }
+        options:
+            | string
+            | EmbedBuilder
+            | { content?: string; embeds?: Array<EmbedBuilder | EmbedPayload | Record<string, unknown>>; replyToId?: string }
     ): Promise<Message> {
         if (!this.socket) throw new BloumeChatAuthError("sendMessage() requires an active connection — call login() first.");
 
@@ -249,7 +261,7 @@ export class BloumeChat extends EventEmitter {
         } else {
             content = options.content ?? "";
             embeds = (options.embeds || []).map(e =>
-                e instanceof EmbedBuilder ? e.toJSON() : e as EmbedPayload | Record<string, unknown>
+                e instanceof EmbedBuilder ? e.toJSON() : (e as EmbedPayload | Record<string, unknown>)
             );
             replyToId = options.replyToId;
         }

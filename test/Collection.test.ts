@@ -27,7 +27,7 @@ describe("Collection", () => {
     });
 
     it("filter() returns a new Collection with only matching entries", () => {
-        const filtered = makeCollection().filter((v) => v > 1);
+        const filtered = makeCollection().filter(v => v > 1);
         expect(filtered).toBeInstanceOf(Collection);
         expect(filtered.toArray()).toEqual([2, 3]);
         // original untouched
@@ -35,20 +35,20 @@ describe("Collection", () => {
     });
 
     it("map() transforms every entry into a plain array", () => {
-        expect(makeCollection().map((v) => v * 10)).toEqual([10, 20, 30]);
+        expect(makeCollection().map(v => v * 10)).toEqual([10, 20, 30]);
     });
 
     it("find() returns the first matching value or undefined", () => {
-        expect(makeCollection().find((v) => v === 2)).toBe(2);
-        expect(makeCollection().find((v) => v === 99)).toBeUndefined();
+        expect(makeCollection().find(v => v === 2)).toBe(2);
+        expect(makeCollection().find(v => v === 99)).toBeUndefined();
     });
 
     it("some() / every() behave like their Array counterparts", () => {
         const col = makeCollection();
-        expect(col.some((v) => v === 2)).toBe(true);
-        expect(col.some((v) => v === 99)).toBe(false);
-        expect(col.every((v) => v > 0)).toBe(true);
-        expect(col.every((v) => v > 1)).toBe(false);
+        expect(col.some(v => v === 2)).toBe(true);
+        expect(col.some(v => v === 99)).toBe(false);
+        expect(col.every(v => v > 0)).toBe(true);
+        expect(col.every(v => v > 1)).toBe(false);
     });
 
     it("every() is vacuously true on an empty collection", () => {
@@ -79,7 +79,10 @@ describe("Collection", () => {
 
     it("concat() merges two collections, with the argument's entries taking priority", () => {
         const base = makeCollection();
-        const other = new Collection<string, number>([["b", 200], ["d", 4]]);
+        const other = new Collection<string, number>([
+            ["b", 200],
+            ["d", 4],
+        ]);
         const merged = base.concat(other);
 
         expect(merged.toArray().sort()).toEqual([1, 200, 3, 4].sort());

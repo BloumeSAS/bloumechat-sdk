@@ -99,9 +99,9 @@ npm run test:watch  # watch mode
 npm run test:coverage
 ```
 
-Every push and pull request runs the [CI workflow](.github/workflows/ci.yml): type-checking, the full test suite across Node 20/22/24, a build, and a dependency audit, plus a coverage report uploaded as a build artifact.
+Every push and pull request runs the [CI workflow](.github/workflows/ci.yml): type-checking, ESLint, a Prettier format check, the full test suite across Node 20/22/24, a build, and a dependency audit, plus a coverage report uploaded as a build artifact.
 
-Releases publish automatically and require no manual step: merging a commit to `main` that bumps `version` in `package.json` triggers the [publish workflow](.github/workflows/publish.yml), which re-runs type-checking, tests and the build, publishes to npm with provenance, then tags the commit and creates the matching GitHub Release. A manual GitHub Release (or `workflow_dispatch`) still works too, for one-off/hotfix publishes.
+Releases publish automatically and require no manual step: merging a commit to `main` that bumps `version` in `package.json` triggers the [publish workflow](.github/workflows/publish.yml), which re-runs type-checking, lint, tests and the build, publishes to npm with provenance, then tags the commit and creates the matching GitHub Release. A manual GitHub Release (or `workflow_dispatch`) still works too, for one-off/hotfix publishes.
 
 ## 🤝 Contributing
 
@@ -109,10 +109,14 @@ Issues and pull requests are welcome on [GitHub](https://github.com/BloumeSAS/bl
 
 ```bash
 npm install
-npm run lint   # type-check
-npm test       # run the test suite
-npm run build  # build dist/
+npm run typecheck    # tsc --noEmit
+npm run lint         # ESLint
+npm run format:check # Prettier
+npm test             # run the test suite
+npm run build        # build dist/
 ```
+
+`npm run lint:fix` and `npm run format` will auto-fix most lint/formatting issues.
 
 ## 📄 License
 

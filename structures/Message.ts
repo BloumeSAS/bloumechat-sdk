@@ -25,12 +25,7 @@ export class Message extends Base {
         // The server HTML-escapes message content at write time (XSS protection),
         // so the API always returns &lt;/&gt;/&amp; instead of raw <, >, & — decode
         // here so bot regexes/mention-parsers see the original characters.
-        this.content = data.content
-            ? data.content
-                .replace(/&lt;/g, "<")
-                .replace(/&gt;/g, ">")
-                .replace(/&amp;/g, "&")
-            : "";
+        this.content = data.content ? data.content.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") : "";
         this.author = client.users.cache.get(data.author?.publicId) || new User(client, data.author);
         this.channelId = data.channelPublicId;
         this.serverId = data.serverPublicId;
@@ -49,11 +44,14 @@ export class Message extends Base {
      */
     get channel() {
         const ChannelClass = require("./Channel").Channel;
-        return this.client.channels.cache.get(this.channelId) || new ChannelClass(this.client, {
-            id: this.channelId,
-            publicId: this.channelId,
-            serverId: this.serverId
-        });
+        return (
+            this.client.channels.cache.get(this.channelId) ||
+            new ChannelClass(this.client, {
+                id: this.channelId,
+                publicId: this.channelId,
+                serverId: this.serverId,
+            })
+        );
     }
 
     /**
@@ -78,7 +76,7 @@ export class Message extends Base {
     /**
      * Replies to the message.
      */
-    async reply(content: string | { content?: string, embeds?: any[] }, embeds?: any[]) {
+    async reply(content: string | { content?: string; embeds?: any[] }, embeds?: any[]) {
         if (typeof content === "string") {
             return this.client.sendMessage(this.channelId, { content, embeds, replyToId: this.id });
         }
@@ -88,7 +86,9 @@ export class Message extends Base {
     /**
      * Edits the message.
      */
-    async edit(options: string | EmbedBuilder | { content?: string; embeds?: Array<EmbedBuilder | EmbedPayload | Record<string, unknown>> }): Promise<Message> {
+    async edit(
+        options: string | EmbedBuilder | { content?: string; embeds?: Array<EmbedBuilder | EmbedPayload | Record<string, unknown>> }
+    ): Promise<Message> {
         if (!this.client.getSocket()) throw new Error("Not connected");
 
         let content = "";
@@ -101,7 +101,7 @@ export class Message extends Base {
         } else {
             content = options.content ?? "";
             embeds = (options.embeds || []).map((e: any) =>
-                e instanceof EmbedBuilder ? e.toJSON() : e as EmbedPayload | Record<string, unknown>
+                e instanceof EmbedBuilder ? e.toJSON() : (e as EmbedPayload | Record<string, unknown>)
             );
         }
 
@@ -133,7 +133,7 @@ export class Message extends Base {
      */
     async pin() {
         await this.client.apiCall(`/chat/${this.channelId}/pin/${this.id}`, {
-            method: "POST"
+            method: "POST",
         });
     }
 
@@ -142,7 +142,7 @@ export class Message extends Base {
      */
     async unpin() {
         await this.client.apiCall(`/chat/${this.channelId}/pin/${this.id}`, {
-            method: "DELETE"
+            method: "DELETE",
         });
     }
 
@@ -153,7 +153,7 @@ export class Message extends Base {
         // Needs URL-encoding because emojis can contain special characters
         const urlEmoji = encodeURIComponent(emoji);
         const data = await this.client.apiCall(`/chat/${this.channelId}/reactions/${this.id}/details?emoji=${urlEmoji}`, {
-            method: "GET"
+            method: "GET",
         });
         return data.reactions; // Returns array of objects { userPublicId, userName, userImage }
     }
@@ -170,12 +170,14 @@ export class Message extends Base {
      * Awaits reactions on the message.
      * @param options max the maximum number of reactions, time the maximum time to wait in ms
      */
-    awaitReactions(options: { max?: number, time?: number } = {}): Promise<any> {
-        return new Promise((resolve) => {
-            const timeout = options.time ? setTimeout(() => {
-                this.client.off("messageReactionAdd", onReact);
-                resolve(null);
-            }, options.time) : null;
+    awaitReactions(options: { max?: number; time?: number } = {}): Promise<any> {
+        return new Promise(resolve => {
+            const timeout = options.time
+                ? setTimeout(() => {
+                      this.client.off("messageReactionAdd", onReact);
+                      resolve(null);
+                  }, options.time)
+                : null;
 
             let count = 0;
             const onReact = (data: any) => {

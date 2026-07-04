@@ -9,3 +9,6 @@ vitest.config.ts
 coverage
 .github
 scripts
+eslint.config.js
+.prettierrc.json
+.prettierignore

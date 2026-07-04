@@ -31,7 +31,7 @@ export class RoleManager extends BaseManager<string, Role> {
 
         const data = await this.client.apiCall(`/servers/${this.guild.id}/roles`, {
             method: "POST",
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
         });
 
         const role = new Role(this.client, data.role);
@@ -44,7 +44,7 @@ export class RoleManager extends BaseManager<string, Role> {
      */
     async delete(roleId: string): Promise<void> {
         await this.client.apiCall(`/servers/${this.guild.id}/roles/${roleId}`, {
-            method: "DELETE"
+            method: "DELETE",
         });
         this.cache.delete(roleId);
     }

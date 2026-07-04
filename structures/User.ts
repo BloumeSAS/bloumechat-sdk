@@ -44,10 +44,14 @@ export class User extends Base {
     }
 
     /** Returns `Username#tag` */
-    get tagString() { return `${this.username}#${this.tag}`; }
+    get tagString() {
+        return `${this.username}#${this.tag}`;
+    }
 
     /** Returns the user as a mention: `<@id>` */
-    toString() { return `<@${this.id}>`; }
+    toString() {
+        return `<@${this.id}>`;
+    }
 
     // ─── Profile ─────────────────────────────────────────────────────────────
 

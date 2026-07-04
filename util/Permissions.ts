@@ -40,8 +40,7 @@ export const PermissionFlags = {
     MANAGE_APPLICATIONS: 1n << 20n,
 } as const;
 
-export type PermissionFlag = typeof PermissionFlags[keyof typeof PermissionFlags];
-
+export type PermissionFlag = (typeof PermissionFlags)[keyof typeof PermissionFlags];
 
 /**
  * Common permission sets

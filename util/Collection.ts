@@ -128,9 +128,7 @@ export class Collection<K, V> extends Map<K, V> {
      * Does not mutate the original.
      */
     sorted(compareFn?: (a: V, b: V) => number): Collection<K, V> {
-        const entries = Array.from(this.entries()).sort(([, a], [, b]) =>
-            compareFn ? compareFn(a, b) : 0
-        );
+        const entries = Array.from(this.entries()).sort(([, a], [, b]) => (compareFn ? compareFn(a, b) : 0));
         return new Collection<K, V>(entries);
     }
 }

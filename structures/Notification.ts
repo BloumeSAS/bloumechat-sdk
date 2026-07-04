@@ -1,13 +1,7 @@
 import { Base } from "./Base";
 import { BloumeChat } from "../bloumechat";
 
-export type NotificationType =
-    | "MENTION"
-    | "REPLY"
-    | "FRIEND_REQUEST"
-    | "FRIEND_ACCEPTED"
-    | "SERVER_INVITE"
-    | "SYSTEM";
+export type NotificationType = "MENTION" | "REPLY" | "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "SERVER_INVITE" | "SYSTEM";
 
 /**
  * Represents an unread notification on BloumeChat.

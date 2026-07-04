@@ -37,7 +37,13 @@ jobs:
         run: npm ci
 
       - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
         run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
 
       - name: Check README version matches package.json
         run: npm run check:readme-version

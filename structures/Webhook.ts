@@ -66,19 +66,14 @@ export class Webhook extends Base {
     async send(options: string | WebhookMessageOptions): Promise<any> {
         if (!this.token) throw new Error("Webhook token is not available. Fetch the webhook with token first.");
 
-        const payload: WebhookMessageOptions = typeof options === "string"
-            ? { content: options }
-            : options;
+        const payload: WebhookMessageOptions = typeof options === "string" ? { content: options } : options;
 
-        const res = await fetch(
-            `${this.client.baseUrl}/webhooks/${this.id}/${this.token}`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-                signal: AbortSignal.timeout(15_000),
-            }
-        );
+        const res = await fetch(`${this.client.baseUrl}/webhooks/${this.id}/${this.token}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(15_000),
+        });
         if (!res.ok) {
             const body = await res.text();
             throw new Error(`Webhook send error ${res.status}: ${body.slice(0, 500)}`);

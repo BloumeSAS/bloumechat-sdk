@@ -56,9 +56,7 @@ describe("EmbedBuilder", () => {
     });
 
     it("addFields() appends without overwriting previous fields", () => {
-        const embed = new EmbedBuilder()
-            .addFields({ name: "A", value: "1" })
-            .addFields({ name: "B", value: "2" });
+        const embed = new EmbedBuilder().addFields({ name: "A", value: "1" }).addFields({ name: "B", value: "2" });
 
         expect(embed.toJSON().fields).toEqual([
             { name: "A", value: "1" },
@@ -67,19 +65,13 @@ describe("EmbedBuilder", () => {
     });
 
     it("setFields() replaces any existing fields", () => {
-        const embed = new EmbedBuilder()
-            .addFields({ name: "A", value: "1" })
-            .setFields({ name: "B", value: "2" });
+        const embed = new EmbedBuilder().addFields({ name: "A", value: "1" }).setFields({ name: "B", value: "2" });
 
         expect(embed.toJSON().fields).toEqual([{ name: "B", value: "2" }]);
     });
 
     it("spliceFields() removes and inserts fields at a given index", () => {
-        const embed = new EmbedBuilder().setFields(
-            { name: "A", value: "1" },
-            { name: "B", value: "2" },
-            { name: "C", value: "3" }
-        );
+        const embed = new EmbedBuilder().setFields({ name: "A", value: "1" }, { name: "B", value: "2" }, { name: "C", value: "3" });
         embed.spliceFields(1, 1, { name: "B2", value: "20" });
 
         expect(embed.toJSON().fields).toEqual([

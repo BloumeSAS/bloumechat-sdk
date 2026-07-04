@@ -64,7 +64,7 @@ describe("RestManager", () => {
         fetchMock.mockResolvedValue(jsonResponse({ error: "slow down" }, { status: 429, headers: { "Retry-After": "0" } }));
         const rest = new RestManager("https://bloumechat.com/api/v2", () => "t");
 
-        const err = await rest.request("/spammy", { maxRetries: 1 }).catch((e) => e);
+        const err = await rest.request("/spammy", { maxRetries: 1 }).catch(e => e);
         expect(err).toBeInstanceOf(RateLimitError);
         expect(err.status).toBe(429);
         expect(err.retryAfterMs).toBe(0);
@@ -88,9 +88,7 @@ describe("RestManager", () => {
 
     it("retries a network TypeError and eventually succeeds", async () => {
         vi.useFakeTimers();
-        fetchMock
-            .mockRejectedValueOnce(new TypeError("fetch failed"))
-            .mockResolvedValueOnce(jsonResponse({ ok: true }));
+        fetchMock.mockRejectedValueOnce(new TypeError("fetch failed")).mockResolvedValueOnce(jsonResponse({ ok: true }));
 
         const rest = new RestManager("https://bloumechat.com/api/v2", () => "t");
         const promise = rest.request("/network-blip", { maxRetries: 1 });

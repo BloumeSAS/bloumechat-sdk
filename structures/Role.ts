@@ -1,7 +1,6 @@
 import { Base } from "./Base";
 import { BloumeChat } from "../bloumechat";
-import { Guild } from "./Guild";
-import { ALL_PERMISSIONS, PermissionFlags } from "../util/Permissions";
+import { PermissionFlags } from "../util/Permissions";
 
 /**
  * Represents a role on BloumeChat.
@@ -49,7 +48,7 @@ export class Role extends Base {
 
         await this.client.apiCall(`/servers/${this.serverId}/roles/${this.id}`, {
             method: "PATCH",
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
         });
 
         if (data.name !== undefined) this.name = data.name;
@@ -63,7 +62,7 @@ export class Role extends Base {
      */
     async delete() {
         await this.client.apiCall(`/servers/${this.serverId}/roles/${this.id}`, {
-            method: "DELETE"
+            method: "DELETE",
         });
     }
 }

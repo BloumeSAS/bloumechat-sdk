@@ -29,7 +29,9 @@ if (updated === readme) {
 }
 
 if (process.argv.includes("--check")) {
-    console.error(`[sync-readme-version] README footer is out of sync with package.json (v${version}). Run "node scripts/sync-readme-version.js" and commit the result.`);
+    console.error(
+        `[sync-readme-version] README footer is out of sync with package.json (v${version}). Run "node scripts/sync-readme-version.js" and commit the result.`
+    );
     process.exit(1);
 }
 

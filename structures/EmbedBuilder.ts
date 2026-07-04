@@ -78,8 +78,8 @@ export class EmbedBuilder {
         }
 
         // Convert hex strings like "#0099ff" to number or store as string
-        if (typeof color === 'string' && color.startsWith('#')) {
-            color = parseInt(color.replace('#', ''), 16);
+        if (typeof color === "string" && color.startsWith("#")) {
+            color = parseInt(color.replace("#", ""), 16);
         }
 
         this.data.color = color;

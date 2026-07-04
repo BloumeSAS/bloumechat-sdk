@@ -46,10 +46,7 @@ describe("Role", () => {
         const { role, client } = makeRole();
         await role.edit({ name: "Senior Moderator", color: "#8b0000" });
 
-        expect(client.apiCall).toHaveBeenCalledWith(
-            "/servers/server_1/roles/role_1",
-            expect.objectContaining({ method: "PATCH" })
-        );
+        expect(client.apiCall).toHaveBeenCalledWith("/servers/server_1/roles/role_1", expect.objectContaining({ method: "PATCH" }));
         expect(role.name).toBe("Senior Moderator");
         expect(role.color).toBe("#8b0000");
     });
@@ -68,9 +65,6 @@ describe("Role", () => {
         const { role, client } = makeRole();
         await role.delete();
 
-        expect(client.apiCall).toHaveBeenCalledWith(
-            "/servers/server_1/roles/role_1",
-            expect.objectContaining({ method: "DELETE" })
-        );
+        expect(client.apiCall).toHaveBeenCalledWith("/servers/server_1/roles/role_1", expect.objectContaining({ method: "DELETE" }));
     });
 });

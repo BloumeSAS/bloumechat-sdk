@@ -61,7 +61,7 @@ export class Member extends Base {
     async kick(reason?: string) {
         await this.client.apiCall(`/servers/${this.serverId}/members/${this.id}`, {
             method: "DELETE",
-            body: JSON.stringify({ reason })
+            body: JSON.stringify({ reason }),
         });
     }
 
@@ -71,7 +71,7 @@ export class Member extends Base {
     async ban(options?: { reason?: string; deleteMessageDays?: number }) {
         await this.client.apiCall(`/servers/${this.serverId}/bans/${this.id}`, {
             method: "PUT",
-            body: JSON.stringify(options)
+            body: JSON.stringify(options),
         });
     }
 
@@ -81,7 +81,7 @@ export class Member extends Base {
     async edit(data: { roles?: string[]; nickname?: string | null }) {
         await this.client.apiCall(`/servers/${this.serverId}/members/${this.id}`, {
             method: "PATCH",
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
         });
         if (data.roles) this.roles = data.roles;
     }

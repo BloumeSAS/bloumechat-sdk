@@ -114,7 +114,9 @@ export class Channel extends Base {
     }
 
     /** Renames this channel. */
-    async setName(name: string): Promise<void> { return this.edit({ name }); }
+    async setName(name: string): Promise<void> {
+        return this.edit({ name });
+    }
 
     /** Deletes this channel. */
     async delete(): Promise<void> {
@@ -163,7 +165,8 @@ export class Channel extends Base {
         await this.client.apiCall(`/channels/${this.id}/overrides`, {
             method: "POST",
             body: JSON.stringify({
-                targetId, type,
+                targetId,
+                type,
                 allow: options.allow.toString(),
                 deny: options.deny.toString(),
             }),

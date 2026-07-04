@@ -28,7 +28,7 @@ describe("Error hierarchy", () => {
         expect(serverError).not.toBeInstanceOf(RateLimitError);
     });
 
-    it("sets .name to the concrete class name, not the generic \"Error\"", () => {
+    it('sets .name to the concrete class name, not the generic "Error"', () => {
         expect(new BloumeChatAuthError("x").name).toBe("BloumeChatAuthError");
         expect(new BloumeChatAPIError(404, "/x", "").name).toBe("BloumeChatAPIError");
         expect(new RateLimitError("/x", "", null).name).toBe("RateLimitError");

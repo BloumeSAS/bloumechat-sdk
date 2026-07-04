@@ -19,19 +19,12 @@ export class GuildManager extends BaseManager<string, Guild> {
         if (cache) {
             for (const guild of guilds) {
                 this.cache.set(guild.id, guild);
-                // Also fetch our own member for this guild to populate permissions
+                // Also fetch our own member for this guild to populate permissions.
                 if (this.client.user) {
                     try {
-                        const memberData = await this.client.apiCall(`/servers/${guild.id}/members/${this.client.user.id}`);
-                        // Determine which class to use (classes.ts or structures/Member)
-                        // Since user reverted to structures, we use Member from there.
-                        // However, we need to import Member dynamically or assume it's available via client.members
-                        // Actually, better to use the member manager to construct/cache it.
-                        // But MemberManager.add() isn't exposed. 
-                        // Let's just use the Member class directly if imported, or let MemberManager handle fetch.
                         await this.client.members.fetch(guild.id, this.client.user.id);
-                    } catch (e) {
-                        // Ignore if fails (e.g. not in server properly?)
+                    } catch {
+                        // Ignore if it fails (e.g. member record not propagated yet).
                     }
                 }
             }
@@ -60,7 +53,7 @@ export class GuildManager extends BaseManager<string, Guild> {
 
         const data = await this.client.apiCall("/servers", {
             method: "POST",
-            body: JSON.stringify(options)
+            body: JSON.stringify(options),
         });
 
         const guild = new Guild(this.client, data.server);

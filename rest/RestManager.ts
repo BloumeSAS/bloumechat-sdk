@@ -68,7 +68,6 @@ export class RestManager {
         await this._acquireSlot();
         try {
             let attempt = 0;
-            // eslint-disable-next-line no-constant-condition
             while (true) {
                 const controller = new AbortController();
                 const timeout = setTimeout(() => controller.abort(), timeoutMs);
