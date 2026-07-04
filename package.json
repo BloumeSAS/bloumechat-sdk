@@ -1,6 +1,6 @@
 {
     "name": "bloumechat",
-    "version": "1.4.1",
+    "version": "1.4.2",
     "description": "Official JavaScript/TypeScript SDK for BloumeChat — build bots, automations and integrations with a strongly-typed, Discord-like API.",
     "main": "./dist/index.js",
     "module": "./dist/index.mjs",
