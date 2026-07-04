@@ -129,5 +129,5 @@ Released under the [ISC License](LICENSE).
 ---
 
 <p align="center">
-  <b>V1.4.2 - Developed with ❤️ for <a href="https://bloumechat.com">BloumeChat.com</a></b>
+  <b>V1.5.0 - Developed with ❤️ for <a href="https://bloumechat.com">BloumeChat.com</a></b>
 </p>
