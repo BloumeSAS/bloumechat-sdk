@@ -375,9 +375,19 @@ await message.reply("Diagnostics completed:", [embed]);
 
 ---
 
-## 🧪 Continuous Integration
+## 🧪 Testing & Continuous Integration
 
-Every push and pull request runs the [CI workflow](.github/workflows/ci.yml): type-checking, a full build across Node 18/20/22, and a dependency audit. Releases only ship through the [publish workflow](.github/workflows/publish.yml), which re-verifies the build and publishes with npm provenance — no untracked local publishes.
+The SDK ships with a [Vitest](https://vitest.dev) unit test suite covering the client (token redaction, login validation, endpoint defaults), permission bitmask math, the `Collection` utility, `EmbedBuilder`, and the `Role` structure.
+
+```bash
+npm test            # run the full suite once
+npm run test:watch  # watch mode
+npm run test:coverage
+```
+
+Every push and pull request runs the [CI workflow](.github/workflows/ci.yml): type-checking, the full test suite across Node 18/20/22, a build, and a dependency audit, plus a coverage report uploaded as a build artifact.
+
+Releases publish automatically and require no manual step: merging a commit to `main` that bumps `version` in `package.json` triggers the [publish workflow](.github/workflows/publish.yml), which re-runs type-checking, tests and the build, publishes to npm with provenance, then tags the commit and creates the matching GitHub Release. A manual GitHub Release (or `workflow_dispatch`) still works too, for one-off/hotfix publishes.
 
 ## 🤝 Contributing
 
@@ -386,6 +396,7 @@ Issues and pull requests are welcome on [GitHub](https://github.com/BloumeSAS/bl
 ```bash
 npm install
 npm run lint   # type-check
+npm test       # run the test suite
 npm run build  # build dist/
 ```
 
@@ -396,5 +407,5 @@ Released under the [ISC License](LICENSE).
 ---
 
 <p align="center">
-  <b>V1.4.0 - Developed with ❤️ for <a href="https://bloumechat.com">BloumeChat.com</a></b>
+  <b>V1.4.1 - Developed with ❤️ for <a href="https://bloumechat.com">BloumeChat.com</a></b>
 </p>

@@ -216,14 +216,37 @@ export class BloumeChat extends EventEmitter {
     /** @internal */
     public getSocket(): Socket | null { return this.socket; }
 
+    /**
+     * Builds a safe, non-circular snapshot of the client: redacts the bot token and
+     * collapses the manager caches (and the raw socket/user structures, which all hold
+     * a back-reference to this client) down to plain summaries. Without this, spreading
+     * `this` directly — as a naive redaction shortcut would — keeps those circular
+     * `structure.client === this` references intact, and `JSON.stringify()` throws
+     * ("Converting circular structure to JSON") the moment any manager has cached data,
+     * which defeats the point of a "safe to log" representation.
+     */
+    private _toSafeSnapshot(): Record<string, unknown> {
+        const { users, guilds, channels, members, socket, user, _requestQueue, ...rest } = this as any;
+        return {
+            ...rest,
+            _token: this._token ? "[REDACTED]" : null,
+            user: user ? { id: user.id, username: user.username, tag: user.tag } : null,
+            users: `[UserManager cache=${users.cache.size}]`,
+            guilds: `[GuildManager cache=${guilds.cache.size}]`,
+            channels: `[ChannelManager cache=${channels.cache.size}]`,
+            members: `[MemberManager cache=${members.cache.size}]`,
+            socket: socket ? "[Socket]" : null,
+        };
+    }
+
     /** Redact the token in default Node.js console output (`console.log(client)`). */
     private [Symbol.for("nodejs.util.inspect.custom")]() {
-        return { ...this, _token: this._token ? "[REDACTED]" : null };
+        return this._toSafeSnapshot();
     }
 
     /** Redact the token if a consumer does `JSON.stringify(client)`. */
     toJSON() {
-        return { ...this, _token: this._token ? "[REDACTED]" : null };
+        return this._toSafeSnapshot();
     }
 
     // ─── Login / Destroy ─────────────────────────────────────────────────────

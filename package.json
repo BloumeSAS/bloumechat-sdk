@@ -1,6 +1,6 @@
 {
     "name": "bloumechat",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "description": "Official JavaScript/TypeScript SDK for BloumeChat — build bots, automations and integrations with a strongly-typed, Discord-like API.",
     "main": "./dist/index.js",
     "module": "./dist/index.mjs",
@@ -19,9 +19,12 @@
         "build": "tsup index.ts --format cjs,esm --dts --clean",
         "dev": "tsup index.ts --format cjs,esm --watch --dts",
         "lint": "tsc --noEmit",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage",
         "release": "npm run build && npm version patch && npm publish",
         "publish-sdk": "npm run build && npm publish",
-        "prepublishOnly": "npm run build"
+        "prepublishOnly": "npm run lint && npm run test && npm run build"
     },
     "keywords": [
         "bloumechat",
@@ -50,7 +53,9 @@
         "socket.io-client": "^4.8.3"
     },
     "devDependencies": {
+        "@vitest/coverage-v8": "^4.1.9",
         "tsup": "^8.0.2",
-        "typescript": "^5.3.3"
+        "typescript": "^5.3.3",
+        "vitest": "^4.1.9"
     }
 }

@@ -4,3 +4,7 @@ dist
 .DS_Store
 tsconfig.json
 tsup.config.ts
+test
+vitest.config.ts
+coverage
+.github

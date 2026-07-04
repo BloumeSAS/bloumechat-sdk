@@ -1,17 +1,51 @@
 name: Publish to npm
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "package.json"
   release:
     types: [published]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # to tag the release commit + create the GitHub Release
   id-token: write # required for npm provenance (OIDC)
 
 jobs:
+  # On a plain push to main, only proceed if package.json's version was actually bumped
+  # and isn't already on npm — this is what lets a normal "bump version, merge to main"
+  # PR publish itself, with no separate manual GitHub Release step required.
+  check-version:
+    name: Check for a version bump
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.check.outputs.should_publish }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compare package.json version against the latest published version
+        id: check
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          NPM_VERSION="$(npm view bloumechat version 2>/dev/null || echo "0.0.0")"
+          echo "package.json version: $PKG_VERSION"
+          echo "npm registry version: $NPM_VERSION"
+          echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$PKG_VERSION" != "$NPM_VERSION" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
   publish:
-    name: Build, verify & publish
+    name: Test, build & publish
+    needs: [check-version]
+    if: always() && (github.event_name != 'push' || needs.check-version.outputs.should_publish == 'true')
     runs-on: ubuntu-latest
     environment: npm-publish
     steps:
@@ -31,6 +65,9 @@ jobs:
       - name: Type check
         run: npm run lint
 
+      - name: Run test suite
+        run: npm test
+
       - name: Build package
         run: npm run build
 
@@ -48,3 +85,21 @@ jobs:
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Only for the auto-publish-on-push path — a manually-created GitHub Release
+      # already has its own tag, so there's nothing to create here in that case.
+      - name: Tag the published commit
+        if: github.event_name == 'push'
+        run: |
+          VERSION="v${{ needs.check-version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$VERSION"
+          git push origin "$VERSION"
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          generate_release_notes: true
