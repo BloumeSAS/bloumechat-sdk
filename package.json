@@ -58,6 +58,7 @@
         "socket.io-client": "^4.8.3"
     },
     "devDependencies": {
+        "@types/node": "^20.14.0",
         "@vitest/coverage-v8": "^4.1.9",
         "tsup": "^8.0.2",
         "typescript": "^5.3.3",
