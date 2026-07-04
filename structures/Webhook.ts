@@ -1,11 +1,19 @@
 import { Base } from "./Base";
 import { BloumeChat } from "../bloumechat";
+import type { EmbedPayload } from "./EmbedBuilder";
+import { BloumeChatAuthError } from "../errors/BloumeChatAuthError";
+import { BloumeChatAPIError } from "../errors/BloumeChatAPIError";
 
 export interface WebhookMessageOptions {
     content?: string;
     username?: string;
     avatarUrl?: string;
-    embeds?: any[];
+    embeds?: Array<EmbedPayload | Record<string, unknown>>;
+}
+
+/** Response returned by {@link Webhook.send}. */
+export interface WebhookSendResult {
+    id: string;
 }
 
 /**
@@ -63,8 +71,8 @@ export class Webhook extends Base {
      * Sends a message through this webhook.
      * Requires the token to be available.
      */
-    async send(options: string | WebhookMessageOptions): Promise<any> {
-        if (!this.token) throw new Error("Webhook token is not available. Fetch the webhook with token first.");
+    async send(options: string | WebhookMessageOptions): Promise<WebhookSendResult> {
+        if (!this.token) throw new BloumeChatAuthError("Webhook token is not available. Fetch the webhook with token first.");
 
         const payload: WebhookMessageOptions = typeof options === "string" ? { content: options } : options;
 
@@ -76,7 +84,7 @@ export class Webhook extends Base {
         });
         if (!res.ok) {
             const body = await res.text();
-            throw new Error(`Webhook send error ${res.status}: ${body.slice(0, 500)}`);
+            throw new BloumeChatAPIError(res.status, `/webhooks/${this.id}/${this.token}`, body);
         }
         return res.json();
     }

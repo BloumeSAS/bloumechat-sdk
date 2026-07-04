@@ -3,6 +3,10 @@ import { BloumeChat } from "../bloumechat";
 import { User } from "./User";
 import type { Member } from "./Member";
 import { EmbedBuilder, EmbedPayload } from "./EmbedBuilder";
+import { BloumeChatAuthError } from "../errors/BloumeChatAuthError";
+import type { ReactionUserDTO, MessageReactionEventData } from "./dto";
+
+export type { ReactionUserDTO, MessageReactionEventData } from "./dto";
 
 /**
  * Represents a message on BloumeChat.
@@ -15,7 +19,7 @@ export class Message extends Base {
     public serverId?: string;
     public createdAt: Date;
     public nonce?: string;
-    public embeds: any[];
+    public embeds: Array<EmbedPayload | Record<string, unknown>>;
     public rawData: any;
     public fileUrl: string | null;
 
@@ -76,7 +80,10 @@ export class Message extends Base {
     /**
      * Replies to the message.
      */
-    async reply(content: string | { content?: string; embeds?: any[] }, embeds?: any[]) {
+    async reply(
+        content: string | { content?: string; embeds?: Array<EmbedBuilder | EmbedPayload | Record<string, unknown>> },
+        embeds?: Array<EmbedBuilder | EmbedPayload | Record<string, unknown>>
+    ): Promise<Message> {
         if (typeof content === "string") {
             return this.client.sendMessage(this.channelId, { content, embeds, replyToId: this.id });
         }
@@ -89,7 +96,7 @@ export class Message extends Base {
     async edit(
         options: string | EmbedBuilder | { content?: string; embeds?: Array<EmbedBuilder | EmbedPayload | Record<string, unknown>> }
     ): Promise<Message> {
-        if (!this.client.getSocket()) throw new Error("Not connected");
+        if (!this.client.getSocket()) throw new BloumeChatAuthError("edit() requires an active connection — call login() first.");
 
         let content = "";
         let embeds: Array<EmbedPayload | Record<string, unknown>> = [];
@@ -114,24 +121,24 @@ export class Message extends Base {
     /**
      * Deletes the message.
      */
-    async delete() {
-        if (!this.client.getSocket()) throw new Error("Not connected");
+    async delete(): Promise<void> {
+        if (!this.client.getSocket()) throw new BloumeChatAuthError("delete() requires an active connection — call login() first.");
         this.client.getSocket()?.emit("message:delete", { messagePublicId: this.id });
     }
 
     /**
      * Reacts to the message with an emoji.
      */
-    async react(emoji: string) {
+    async react(emoji: string): Promise<void> {
         const socket = this.client.getSocket();
-        if (!socket) throw new Error("Not connected");
+        if (!socket) throw new BloumeChatAuthError("react() requires an active connection — call login() first.");
         socket.emit("message:react", { messagePublicId: this.id, emoji });
     }
 
     /**
      * Pins the message to the channel.
      */
-    async pin() {
+    async pin(): Promise<void> {
         await this.client.apiCall(`/chat/${this.channelId}/pin/${this.id}`, {
             method: "POST",
         });
@@ -140,7 +147,7 @@ export class Message extends Base {
     /**
      * Unpins the message from the channel.
      */
-    async unpin() {
+    async unpin(): Promise<void> {
         await this.client.apiCall(`/chat/${this.channelId}/pin/${this.id}`, {
             method: "DELETE",
         });
@@ -149,20 +156,20 @@ export class Message extends Base {
     /**
      * Fetches detailed information about users who reacted with a specific emoji.
      */
-    async fetchReactions(emoji: string) {
+    async fetchReactions(emoji: string): Promise<ReactionUserDTO[]> {
         // Needs URL-encoding because emojis can contain special characters
         const urlEmoji = encodeURIComponent(emoji);
         const data = await this.client.apiCall(`/chat/${this.channelId}/reactions/${this.id}/details?emoji=${urlEmoji}`, {
             method: "GET",
         });
-        return data.reactions; // Returns array of objects { userPublicId, userName, userImage }
+        return data.reactions || [];
     }
 
     /**
      * Clears all reactions from the message.
      */
-    async clearReactions() {
-        if (!this.client.getSocket()) throw new Error("Not connected");
+    async clearReactions(): Promise<void> {
+        if (!this.client.getSocket()) throw new BloumeChatAuthError("clearReactions() requires an active connection — call login() first.");
         this.client.getSocket()?.emit("message:reaction_clear", { messagePublicId: this.id });
     }
 
@@ -170,7 +177,7 @@ export class Message extends Base {
      * Awaits reactions on the message.
      * @param options max the maximum number of reactions, time the maximum time to wait in ms
      */
-    awaitReactions(options: { max?: number; time?: number } = {}): Promise<any> {
+    awaitReactions(options: { max?: number; time?: number } = {}): Promise<MessageReactionEventData | null> {
         return new Promise(resolve => {
             const timeout = options.time
                 ? setTimeout(() => {

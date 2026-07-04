@@ -2,6 +2,9 @@ import { Base } from "./Base";
 import { BloumeChat } from "../bloumechat";
 import { User } from "./User";
 import { PermissionFlags, ALL_PERMISSIONS } from "../util/Permissions";
+import type { MemberRoleRef } from "./dto";
+
+export type { MemberRoleRef } from "./dto";
 
 /**
  * Represents a member of a server.
@@ -10,7 +13,12 @@ export class Member extends Base {
     public id: string;
     public user: User;
     public serverId: string;
-    public roles: any[];
+    /**
+     * Roles attached to this member. Entries are normally full role objects
+     * (`{ id, permissions, ... }`), but `addRole`/`removeRole` also accept a
+     * bare role ID string in this array — hence the union.
+     */
+    public roles: Array<MemberRoleRef | string>;
     public joinedAt: Date;
 
     constructor(client: BloumeChat, data: any) {
@@ -37,6 +45,7 @@ export class Member extends Base {
         // Add permissions from roles
         // We expect roles to be populated with their permissions from the API
         for (const role of this.roles) {
+            if (typeof role === "string") continue;
             permissions |= BigInt(role.permissions || 0);
         }
 
@@ -58,7 +67,7 @@ export class Member extends Base {
     /**
      * Kicks the member from the server.
      */
-    async kick(reason?: string) {
+    async kick(reason?: string): Promise<void> {
         await this.client.apiCall(`/servers/${this.serverId}/members/${this.id}`, {
             method: "DELETE",
             body: JSON.stringify({ reason }),
@@ -68,7 +77,7 @@ export class Member extends Base {
     /**
      * Bans the member from the server.
      */
-    async ban(options?: { reason?: string; deleteMessageDays?: number }) {
+    async ban(options?: { reason?: string; deleteMessageDays?: number }): Promise<void> {
         await this.client.apiCall(`/servers/${this.serverId}/bans/${this.id}`, {
             method: "PUT",
             body: JSON.stringify(options),
@@ -78,7 +87,7 @@ export class Member extends Base {
     /**
      * Edits the member (e.g., roles, nickname).
      */
-    async edit(data: { roles?: string[]; nickname?: string | null }) {
+    async edit(data: { roles?: string[]; nickname?: string | null }): Promise<void> {
         await this.client.apiCall(`/servers/${this.serverId}/members/${this.id}`, {
             method: "PATCH",
             body: JSON.stringify(data),
@@ -89,15 +98,19 @@ export class Member extends Base {
     /**
      * Set the member's nickname.
      */
-    async setNickname(nickname: string | null) {
+    async setNickname(nickname: string | null): Promise<void> {
         return this.edit({ nickname });
+    }
+
+    private roleIds(): string[] {
+        return this.roles.map(r => (typeof r === "string" ? r : (r.id ?? r.publicId ?? ""))).filter(Boolean);
     }
 
     /**
      * Adds a role to the member.
      */
-    async addRole(roleId: string) {
-        const currentRoleIds = this.roles.map(r => r.id || r.publicId || r);
+    async addRole(roleId: string): Promise<void> {
+        const currentRoleIds = this.roleIds();
         if (currentRoleIds.includes(roleId)) return;
         return this.edit({ roles: [...currentRoleIds, roleId] });
     }
@@ -105,8 +118,8 @@ export class Member extends Base {
     /**
      * Removes a role from the member.
      */
-    async removeRole(roleId: string) {
-        const currentRoleIds = this.roles.map(r => r.id || r.publicId || r);
+    async removeRole(roleId: string): Promise<void> {
+        const currentRoleIds = this.roleIds();
         if (!currentRoleIds.includes(roleId)) return;
         return this.edit({ roles: currentRoleIds.filter(id => id !== roleId) });
     }

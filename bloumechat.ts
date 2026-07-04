@@ -408,11 +408,11 @@ export class BloumeChat extends EventEmitter {
      * @example
      * const results = await client.searchMessages('CHANNEL_ID', 'hello world');
      */
-    async searchMessages(channelId: string, query: string, options?: { limit?: number }): Promise<any[]> {
+    async searchMessages(channelId: string, query: string, options?: { limit?: number }): Promise<Message[]> {
         const q = new URLSearchParams({ q: query });
         if (options?.limit) q.append("limit", options.limit.toString());
         const data = await this.apiCall(`/chat/${channelId}/search?${q.toString()}`);
-        return data.messages || [];
+        return (data.messages || []).map((m: any) => new Message(this, m));
     }
 
     // ─── Internals ────────────────────────────────────────────────────────────

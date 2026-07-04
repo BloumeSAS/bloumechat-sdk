@@ -1,5 +1,8 @@
 import { Base } from "./Base";
 import { BloumeChat } from "../bloumechat";
+import type { MutualServerDTO } from "./dto";
+
+export type { MutualServerDTO } from "./dto";
 
 export interface UserProfile {
     id: string;
@@ -80,7 +83,7 @@ export class User extends Base {
     /**
      * Fetches mutual servers with this user.
      */
-    async fetchMutualServers(): Promise<any[]> {
+    async fetchMutualServers(): Promise<MutualServerDTO[]> {
         const data = await this.client.apiCall(`/users/${this.id}/mutual-servers`);
         return data.mutualServers || [];
     }

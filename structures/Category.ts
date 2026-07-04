@@ -1,6 +1,7 @@
 import { Base } from "./Base";
 import { BloumeChat } from "../bloumechat";
 import { Channel } from "./Channel";
+import type { PermissionOverrideDTO } from "./dto";
 
 /**
  * Represents a channel category on BloumeChat.
@@ -72,7 +73,7 @@ export class Category extends Base {
     /**
      * Fetches the category's permission overrides.
      */
-    async fetchPermissionOverrides(): Promise<any[]> {
+    async fetchPermissionOverrides(): Promise<PermissionOverrideDTO[]> {
         const data = await this.client.apiCall(`/servers/${this.serverId}/categories/${this.id}/overrides`);
         return data.overrides || [];
     }

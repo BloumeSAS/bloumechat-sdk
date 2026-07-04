@@ -2,6 +2,12 @@ import { Base } from "./Base";
 import { BloumeChat } from "../bloumechat";
 import type { RoleManager } from "../managers/RoleManager";
 import type { Role } from "./Role";
+import type { Category } from "./Category";
+import type { Emoji } from "./Emoji";
+import { BloumeChatAuthError } from "../errors/BloumeChatAuthError";
+import type { MemberSearchResultDTO, BanDTO, GuildInviteDTO, AuditLogEntryDTO } from "./dto";
+
+export type { MemberSearchResultDTO, BanDTO, GuildInviteDTO, AuditLogEntryDTO } from "./dto";
 
 export interface NotificationSettings {
     muted?: boolean;
@@ -122,7 +128,7 @@ export class Guild extends Base {
     /**
      * Searches members by username (partial match).
      */
-    async searchMembers(query: string): Promise<any[]> {
+    async searchMembers(query: string): Promise<MemberSearchResultDTO[]> {
         const data = await this.client.apiCall(`/servers/${this.id}/members?search=${encodeURIComponent(query)}`);
         return data.members || [];
     }
@@ -130,14 +136,14 @@ export class Guild extends Base {
     // ─── Bans ────────────────────────────────────────────────────────────────
 
     /** Fetches all banned users. */
-    async fetchBans(): Promise<any[]> {
+    async fetchBans(): Promise<BanDTO[]> {
         const data = await this.client.apiCall(`/servers/${this.id}/bans`);
         return data.bans || [];
     }
 
     /** Lifts the ban of a user by their public ID. */
     async unbanMember(userId: string): Promise<void> {
-        if (!this.client.getSocket()) throw new Error("Not connected");
+        if (!this.client.getSocket()) throw new BloumeChatAuthError("unbanMember() requires an active connection — call login() first.");
         this.client.getSocket()?.emit("server:unban", { serverPublicId: this.id, userPublicId: userId });
     }
 
@@ -195,13 +201,15 @@ export class Guild extends Base {
     // ─── Invites ─────────────────────────────────────────────────────────────
 
     /** Fetches all active invites. */
-    async fetchInvites(): Promise<any[]> {
-        const data = await this.client.apiCall(`/servers/${this.id}/invites`);
+    async fetchInvites(): Promise<GuildInviteDTO[]> {
+        // `all=true` is required for the API to return the full server-wide invite
+        // list — without it, the endpoint returns only the caller's own invite.
+        const data = await this.client.apiCall(`/servers/${this.id}/invites?all=true`);
         return data.invites || [];
     }
 
     /** Creates an invite for a specific channel. */
-    async createInvite(channelId: string, options?: { maxAge?: number; maxUses?: number }): Promise<any> {
+    async createInvite(channelId: string, options?: { maxAge?: number; maxUses?: number }): Promise<GuildInviteDTO> {
         const data = await this.client.apiCall(`/servers/${this.id}/invites`, {
             method: "POST",
             body: JSON.stringify({ channelPublicId: channelId, ...options }),
@@ -212,14 +220,14 @@ export class Guild extends Base {
     // ─── Categories ──────────────────────────────────────────────────────────
 
     /** Fetches all categories (and their nested channels). */
-    async fetchCategories(): Promise<any[]> {
+    async fetchCategories(): Promise<Category[]> {
         const Category = require("./Category").Category;
         const data = await this.client.apiCall(`/servers/${this.id}/categories`);
         return (data.categories || []).map((c: any) => new Category(this.client, { ...c, serverId: this.id }));
     }
 
     /** Creates a new category. */
-    async createCategory(name: string): Promise<any> {
+    async createCategory(name: string): Promise<Category> {
         const Category = require("./Category").Category;
         const data = await this.client.apiCall(`/servers/${this.id}/categories`, {
             method: "POST",
@@ -231,7 +239,7 @@ export class Guild extends Base {
     // ─── Emojis ──────────────────────────────────────────────────────────────
 
     /** Fetches all custom emojis for this server. */
-    async fetchEmojis(): Promise<any[]> {
+    async fetchEmojis(): Promise<Emoji[]> {
         const { Emoji } = require("./Emoji");
         const data = await this.client.apiCall(`/servers/${this.id}/emojis`);
         return (data.emojis || []).map((e: any) => new Emoji(this.client, { ...e, serverId: this.id }));
@@ -249,7 +257,7 @@ export class Guild extends Base {
      * @param options.limit Number of entries (default 50)
      * @param options.action Filter by action type
      */
-    async fetchAuditLogs(options?: { limit?: number; action?: string }): Promise<any[]> {
+    async fetchAuditLogs(options?: { limit?: number; action?: string }): Promise<AuditLogEntryDTO[]> {
         const q = new URLSearchParams();
         if (options?.limit) q.append("limit", options.limit.toString());
         if (options?.action) q.append("action", options.action);

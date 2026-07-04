@@ -1,5 +1,12 @@
 import { Base } from "./Base";
 import { BloumeChat } from "../bloumechat";
+import { Message } from "./Message";
+import { BloumeChatAuthError } from "../errors/BloumeChatAuthError";
+import type { EmbedBuilder, EmbedPayload } from "./EmbedBuilder";
+import type { Webhook } from "./Webhook";
+import type { GuildInviteDTO, PermissionOverrideDTO } from "./dto";
+
+export type { GuildInviteDTO, PermissionOverrideDTO } from "./dto";
 
 export interface MessageSearchOptions {
     limit?: number;
@@ -33,7 +40,10 @@ export class Channel extends Base {
     /**
      * Sends a message to this channel.
      */
-    async send(content: string | { content?: string; embeds?: any[]; replyToId?: string }, embeds?: any[]) {
+    async send(
+        content: string | { content?: string; embeds?: Array<EmbedBuilder | EmbedPayload | Record<string, unknown>>; replyToId?: string },
+        embeds?: Array<EmbedBuilder | EmbedPayload | Record<string, unknown>>
+    ): Promise<Message> {
         if (typeof content === "string") {
             return this.client.sendMessage(this.id, { content, embeds });
         }
@@ -45,11 +55,11 @@ export class Channel extends Base {
      * @param limit Number of messages to retrieve (default 50, max 100)
      * @param before Fetch messages before this message ID
      */
-    async fetchMessages(limit = 50, before?: string): Promise<any[]> {
+    async fetchMessages(limit = 50, before?: string): Promise<Message[]> {
         const q = new URLSearchParams({ limit: limit.toString() });
         if (before) q.append("before", before);
         const data = await this.client.apiCall(`/chat/${this.id}?${q.toString()}`);
-        return data.messages || [];
+        return (data.messages || []).map((m: any) => new Message(this.client, m));
     }
 
     /**
@@ -65,21 +75,21 @@ export class Channel extends Base {
     /**
      * Searches messages in this channel.
      */
-    async search(query: string, options?: MessageSearchOptions): Promise<any[]> {
+    async search(query: string, options?: MessageSearchOptions): Promise<Message[]> {
         const q = new URLSearchParams({ q: query });
         if (options?.limit) q.append("limit", options.limit.toString());
         if (options?.before) q.append("before", options.before);
         if (options?.after) q.append("after", options.after);
         const data = await this.client.apiCall(`/chat/${this.id}/search?${q.toString()}`);
-        return data.messages || [];
+        return (data.messages || []).map((m: any) => new Message(this.client, m));
     }
 
     /**
      * Fetches pinned messages in this channel.
      */
-    async fetchPins(): Promise<any[]> {
+    async fetchPins(): Promise<Message[]> {
         const data = await this.client.apiCall(`/chat/${this.id}/pins`);
-        return data.pins || [];
+        return (data.pins || []).map((m: any) => new Message(this.client, m));
     }
 
     // ─── Typing ──────────────────────────────────────────────────────────────
@@ -88,7 +98,7 @@ export class Channel extends Base {
      * Emits a typing start indicator in this channel.
      */
     sendTyping(): void {
-        if (!this.client.getSocket()) throw new Error("Not connected");
+        if (!this.client.getSocket()) throw new BloumeChatAuthError("sendTyping() requires an active connection — call login() first.");
         this.client.getSocket()?.emit("typing:start", this.id);
     }
 
@@ -96,7 +106,7 @@ export class Channel extends Base {
      * Stops the typing indicator in this channel.
      */
     stopTyping(): void {
-        if (!this.client.getSocket()) throw new Error("Not connected");
+        if (!this.client.getSocket()) throw new BloumeChatAuthError("stopTyping() requires an active connection — call login() first.");
         this.client.getSocket()?.emit("typing:stop", this.id);
     }
 
@@ -136,7 +146,7 @@ export class Channel extends Base {
     /**
      * Creates an invite to this channel.
      */
-    async createInvite(options?: { maxAge?: number; maxUses?: number }): Promise<any> {
+    async createInvite(options?: { maxAge?: number; maxUses?: number }): Promise<GuildInviteDTO> {
         const data = await this.client.apiCall(`/servers/${this.serverId}/invites`, {
             method: "POST",
             body: JSON.stringify({ channelPublicId: this.id, ...options }),
@@ -149,7 +159,7 @@ export class Channel extends Base {
     /**
      * Fetches all permission overrides for this channel.
      */
-    async fetchPermissionOverrides(): Promise<any[]> {
+    async fetchPermissionOverrides(): Promise<PermissionOverrideDTO[]> {
         const data = await this.client.apiCall(`/channels/${this.id}/overrides`);
         return data.overrides || [];
     }
@@ -194,7 +204,7 @@ export class Channel extends Base {
     /**
      * Fetches all webhooks for this channel.
      */
-    async fetchWebhooks() {
+    async fetchWebhooks(): Promise<Webhook[]> {
         const { Webhook } = require("./Webhook");
         const data = await this.client.apiCall(`/channels/${this.id}/webhooks`);
         return (data.webhooks || []).map((w: any) => new Webhook(this.client, { ...w, channelId: this.id }));
@@ -205,7 +215,7 @@ export class Channel extends Base {
      * @param options.name Webhook display name
      * @param options.avatarUrl Avatar image URL (optional)
      */
-    async createWebhook(options: { name: string; avatarUrl?: string }) {
+    async createWebhook(options: { name: string; avatarUrl?: string }): Promise<Webhook> {
         const { Webhook } = require("./Webhook");
         const data = await this.client.apiCall(`/channels/${this.id}/webhooks`, {
             method: "POST",
