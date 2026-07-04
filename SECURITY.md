@@ -14,6 +14,7 @@ Instead, report it privately:
 - Or use [GitHub's private vulnerability reporting](https://github.com/BloumeSAS/bloumechat-sdk/security/advisories/new) on this repository.
 
 Please include:
+
 - A description of the vulnerability and its potential impact.
 - Steps to reproduce (a minimal code sample if possible).
 - Which version(s) of the SDK are affected.

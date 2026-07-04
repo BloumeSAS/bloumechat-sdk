@@ -32,7 +32,7 @@ npm run build         # tsup — confirms the package actually builds
 
 ## Commit messages
 
-No strict format required, but explain the *why* — a one-line summary plus a short paragraph of context is more useful than a perfect Conventional Commits header.
+No strict format required, but explain the _why_ — a one-line summary plus a short paragraph of context is more useful than a perfect Conventional Commits header.
 
 ## Releasing (maintainers)
 
