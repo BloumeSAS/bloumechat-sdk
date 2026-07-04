@@ -105,7 +105,7 @@ Releases publish automatically and require no manual step: merging a commit to `
 
 ## 🤝 Contributing
 
-Issues and pull requests are welcome on [GitHub](https://github.com/BloumeSAS/bloumechat-sdk). Before opening a PR:
+Issues and pull requests are welcome on [GitHub](https://github.com/BloumeSAS/bloumechat-sdk) — see [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide. Quick version:
 
 ```bash
 npm install
@@ -117,6 +117,8 @@ npm run build        # build dist/
 ```
 
 `npm run lint:fix` and `npm run format` will auto-fix most lint/formatting issues.
+
+Found a security issue? Please follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
 
 ## 📄 License
 
