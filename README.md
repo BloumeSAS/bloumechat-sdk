@@ -120,6 +120,8 @@ npm run build        # build dist/
 
 Found a security issue? Please follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
 
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
+
 ## 📄 License
 
 Released under the [ISC License](LICENSE).
