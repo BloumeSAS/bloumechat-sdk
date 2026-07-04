@@ -24,7 +24,9 @@
         "test:coverage": "vitest run --coverage",
         "release": "npm run build && npm version patch && npm publish",
         "publish-sdk": "npm run build && npm publish",
-        "prepublishOnly": "npm run lint && npm run test && npm run build"
+        "prepublishOnly": "npm run lint && npm run test && npm run build",
+        "version": "node scripts/sync-readme-version.js && git add README.md",
+        "check:readme-version": "node scripts/sync-readme-version.js --check"
     },
     "keywords": [
         "bloumechat",
@@ -36,13 +38,16 @@
         "websocket",
         "realtime"
     ],
-    "author": "BloumeSAS",
+    "author": {
+        "name": "BloumeSAS",
+        "url": "https://bloume.fr"
+    },
     "license": "ISC",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/BloumeSAS/bloumechat-sdk.git"
     },
-    "homepage": "https://github.com/BloumeSAS/bloumechat-sdk#readme",
+    "homepage": "https://dev.bloume.chat",
     "bugs": {
         "url": "https://github.com/BloumeSAS/bloumechat-sdk/issues"
     },

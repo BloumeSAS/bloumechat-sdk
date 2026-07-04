@@ -8,3 +8,4 @@ test
 vitest.config.ts
 coverage
 .github
+scripts

@@ -39,6 +39,9 @@ jobs:
       - name: Type check
         run: npm run lint
 
+      - name: Check README version matches package.json
+        run: npm run check:readme-version
+
       - name: Run test suite
         run: npm test
 

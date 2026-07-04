@@ -14,6 +14,7 @@
   <a href="https://github.com/BloumeSAS/bloumechat-sdk/actions/workflows/ci.yml"><img src="https://github.com/BloumeSAS/bloumechat-sdk/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://www.npmjs.com/package/bloumechat"><img src="https://img.shields.io/badge/provenance-verified-brightgreen?logo=npm" alt="npm provenance verified" /></a>
   <a href="https://opensource.org/licenses/ISC"><img src="https://img.shields.io/badge/License-ISC-blue.svg" alt="License: ISC" /></a>
+  <a href="https://dev.bloume.chat"><img src="https://img.shields.io/badge/docs-dev.bloume.chat-d946ef.svg" alt="Documentation" /></a>
   <a href="https://github.com/JulesZYTB/bloumechat-bot-starter"><img src="https://img.shields.io/badge/Template-Bot_Starter-success.svg" alt="Bot Template" /></a><br/><br/>
   <a href="https://www.buymeacoffee.com/bloumesas"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=bloumesas&button_colour=BD5FFF&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" /></a>
 </p>
@@ -21,6 +22,8 @@
 ---
 
 ## 🚀 Getting Started
+
+📖 Full developer documentation (guides, API reference) lives at **[dev.bloume.chat](https://dev.bloume.chat)**.
 
 To get started quickly, we provide an official **Bot Starter Template** containing all the necessary architecture (Event handler, Command handler, Documentation).
 
@@ -407,7 +410,5 @@ Released under the [ISC License](LICENSE).
 ---
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/bloumechat"><img src="https://img.shields.io/npm/v/bloumechat.svg?label=%20&color=BD5FFF" alt="Current version" /></a>
-  <br/>
-  <b>Developed with ❤️ for <a href="https://bloumechat.com">BloumeChat.com</a></b>
+  <b>V1.4.1 - Developed with ❤️ for <a href="https://bloumechat.com">BloumeChat.com</a></b>
 </p>
