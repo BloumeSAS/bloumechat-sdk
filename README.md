@@ -407,5 +407,7 @@ Released under the [ISC License](LICENSE).
 ---
 
 <p align="center">
-  <b>V1.4.1 - Developed with ❤️ for <a href="https://bloumechat.com">BloumeChat.com</a></b>
+  <a href="https://www.npmjs.com/package/bloumechat"><img src="https://img.shields.io/npm/v/bloumechat.svg?label=%20&color=BD5FFF" alt="Current version" /></a>
+  <br/>
+  <b>Developed with ❤️ for <a href="https://bloumechat.com">BloumeChat.com</a></b>
 </p>
