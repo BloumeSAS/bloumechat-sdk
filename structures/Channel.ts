@@ -4,6 +4,7 @@ import { Message } from "./Message";
 import { BloumeChatAuthError } from "../errors/BloumeChatAuthError";
 import type { EmbedBuilder, EmbedPayload } from "./EmbedBuilder";
 import type { Webhook } from "./Webhook";
+import { WebhookManager } from "../managers/WebhookManager";
 import type { GuildInviteDTO, PermissionOverrideDTO } from "./dto";
 
 export type { GuildInviteDTO, PermissionOverrideDTO } from "./dto";
@@ -26,6 +27,8 @@ export class Channel extends Base {
     public type: string;
     /** ID of the parent server (null for DMs/groups) */
     public serverId: string | null;
+    /** Webhooks manager scoped to this channel */
+    public webhooks: WebhookManager;
 
     constructor(client: BloumeChat, data: any) {
         super(client);
@@ -33,6 +36,8 @@ export class Channel extends Base {
         this.name = data.name;
         this.type = data.type;
         this.serverId = data.serverPublicId || data.serverId || null;
+
+        this.webhooks = new WebhookManager(this);
     }
 
     // ─── Messaging ───────────────────────────────────────────────────────────
@@ -202,25 +207,18 @@ export class Channel extends Base {
     // ─── Webhooks ────────────────────────────────────────────────────────────
 
     /**
-     * Fetches all webhooks for this channel.
+     * Fetches all webhooks for this channel. Shorthand for `channel.webhooks.fetchAll()`.
      */
     async fetchWebhooks(): Promise<Webhook[]> {
-        const { Webhook } = require("./Webhook");
-        const data = await this.client.apiCall(`/channels/${this.id}/webhooks`);
-        return (data.webhooks || []).map((w: any) => new Webhook(this.client, { ...w, channelId: this.id }));
+        return this.webhooks.fetchAll();
     }
 
     /**
-     * Creates a webhook in this channel.
+     * Creates a webhook in this channel. Shorthand for `channel.webhooks.create()`.
      * @param options.name Webhook display name
      * @param options.avatarUrl Avatar image URL (optional)
      */
     async createWebhook(options: { name: string; avatarUrl?: string }): Promise<Webhook> {
-        const { Webhook } = require("./Webhook");
-        const data = await this.client.apiCall(`/channels/${this.id}/webhooks`, {
-            method: "POST",
-            body: JSON.stringify(options),
-        });
-        return new Webhook(this.client, { ...data.webhook, channelId: this.id });
+        return this.webhooks.create(options);
     }
 }

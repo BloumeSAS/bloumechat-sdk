@@ -1,9 +1,12 @@
 import { Base } from "./Base";
 import { BloumeChat } from "../bloumechat";
-import type { RoleManager } from "../managers/RoleManager";
-import type { Role } from "./Role";
-import type { Category } from "./Category";
-import type { Emoji } from "./Emoji";
+import { RoleManager } from "../managers/RoleManager";
+import { InviteManager } from "../managers/InviteManager";
+import { EmojiManager } from "../managers/EmojiManager";
+import { Role } from "./Role";
+import { Category } from "./Category";
+import { Channel } from "./Channel";
+import { Emoji } from "./Emoji";
 import { BloumeChatAuthError } from "../errors/BloumeChatAuthError";
 import type { MemberSearchResultDTO, BanDTO, GuildInviteDTO, AuditLogEntryDTO } from "./dto";
 
@@ -31,6 +34,10 @@ export class Guild extends Base {
     public memberCount: number;
     /** Roles manager scoped to this server */
     public roles: RoleManager;
+    /** Invites manager scoped to this server */
+    public invites: InviteManager;
+    /** Custom emojis manager scoped to this server */
+    public emojis: EmojiManager;
 
     constructor(client: BloumeChat, data: any) {
         super(client);
@@ -42,8 +49,9 @@ export class Guild extends Base {
         this.ownerId = data.ownerId || (data.members || []).find((m: any) => m.isOwner === true)?.publicId;
         this.memberCount = typeof data.memberCount === "number" ? data.memberCount : 0;
 
-        const { RoleManager } = require("../managers/RoleManager");
         this.roles = new RoleManager(this);
+        this.invites = new InviteManager(this);
+        this.emojis = new EmojiManager(this);
     }
 
     /** Members manager scoped to this guild */
@@ -104,7 +112,6 @@ export class Guild extends Base {
         isPrivate?: boolean;
         permissionOverwrites?: { id: string; type: "ROLE" | "MEMBER"; allow: bigint | string; deny: bigint | string }[];
     }) {
-        const Channel = require("./Channel").Channel;
         const payload: any = { name: options.name, type: options.type };
         if (options.categoryId) payload.categoryId = options.categoryId;
         if (options.isPrivate !== undefined) payload.isPrivate = options.isPrivate;
@@ -151,7 +158,6 @@ export class Guild extends Base {
 
     /** Fetches all roles in this server. */
     async fetchRoles(): Promise<Role[]> {
-        const { Role } = require("./Role");
         const data = await this.client.apiCall(`/servers/${this.id}/roles`);
         const roles = (data.roles || []).map((r: any) => new Role(this.client, r));
         this.roles.cache.clear();
@@ -163,7 +169,6 @@ export class Guild extends Base {
 
     /** Creates a new role. */
     async createRole(options: { name: string; color?: string; permissions?: bigint | string; hoist?: boolean }): Promise<Role> {
-        const { Role } = require("./Role");
         const payload: any = { ...options };
         if (options.permissions !== undefined) payload.permissions = options.permissions.toString();
         const data = await this.client.apiCall(`/servers/${this.id}/roles`, {
@@ -180,7 +185,6 @@ export class Guild extends Base {
         roleId: string,
         options: { name?: string; color?: string | null; permissions?: bigint | string; hoist?: boolean }
     ): Promise<Role> {
-        const { Role } = require("./Role");
         const payload: any = { ...options };
         if (options.permissions !== undefined) payload.permissions = options.permissions.toString();
         const data = await this.client.apiCall(`/servers/${this.id}/roles/${roleId}`, {
@@ -200,35 +204,26 @@ export class Guild extends Base {
 
     // ─── Invites ─────────────────────────────────────────────────────────────
 
-    /** Fetches all active invites. */
+    /** Fetches all active invites. Shorthand for `guild.invites.fetchAll()`. */
     async fetchInvites(): Promise<GuildInviteDTO[]> {
-        // `all=true` is required for the API to return the full server-wide invite
-        // list — without it, the endpoint returns only the caller's own invite.
-        const data = await this.client.apiCall(`/servers/${this.id}/invites?all=true`);
-        return data.invites || [];
+        return this.invites.fetchAll();
     }
 
-    /** Creates an invite for a specific channel. */
+    /** Creates an invite for a specific channel. Shorthand for `guild.invites.create()`. */
     async createInvite(channelId: string, options?: { maxAge?: number; maxUses?: number }): Promise<GuildInviteDTO> {
-        const data = await this.client.apiCall(`/servers/${this.id}/invites`, {
-            method: "POST",
-            body: JSON.stringify({ channelPublicId: channelId, ...options }),
-        });
-        return data.invite;
+        return this.invites.create(channelId, options);
     }
 
     // ─── Categories ──────────────────────────────────────────────────────────
 
     /** Fetches all categories (and their nested channels). */
     async fetchCategories(): Promise<Category[]> {
-        const Category = require("./Category").Category;
         const data = await this.client.apiCall(`/servers/${this.id}/categories`);
         return (data.categories || []).map((c: any) => new Category(this.client, { ...c, serverId: this.id }));
     }
 
     /** Creates a new category. */
     async createCategory(name: string): Promise<Category> {
-        const Category = require("./Category").Category;
         const data = await this.client.apiCall(`/servers/${this.id}/categories`, {
             method: "POST",
             body: JSON.stringify({ name }),
@@ -238,16 +233,14 @@ export class Guild extends Base {
 
     // ─── Emojis ──────────────────────────────────────────────────────────────
 
-    /** Fetches all custom emojis for this server. */
+    /** Fetches all custom emojis for this server. Shorthand for `guild.emojis.fetchAll()`. */
     async fetchEmojis(): Promise<Emoji[]> {
-        const { Emoji } = require("./Emoji");
-        const data = await this.client.apiCall(`/servers/${this.id}/emojis`);
-        return (data.emojis || []).map((e: any) => new Emoji(this.client, { ...e, serverId: this.id }));
+        return this.emojis.fetchAll();
     }
 
-    /** Deletes a custom emoji by its public ID. */
+    /** Deletes a custom emoji by its public ID. Shorthand for `guild.emojis.delete()`. */
     async deleteEmoji(emojiId: string): Promise<void> {
-        await this.client.apiCall(`/servers/${this.id}/emojis/${emojiId}`, { method: "DELETE" });
+        return this.emojis.delete(emojiId);
     }
 
     // ─── Audit Logs ──────────────────────────────────────────────────────────

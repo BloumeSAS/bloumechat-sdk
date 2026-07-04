@@ -19,15 +19,19 @@ module.exports = tseslint.config(
             "@typescript-eslint/no-explicit-any": "off",
             "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
             "no-constant-condition": ["error", { checkLoops: false }],
-            // Several structures (Guild/Channel/Message) intentionally lazy-`require()`
-            // sibling structures to dodge circular ES module imports (e.g.
-            // Guild <-> Emoji, Channel <-> Webhook) — an established pattern here,
-            // not something to rewrite as part of introducing the linter.
-            "@typescript-eslint/no-require-imports": "off",
             // `export declare interface BloumeChat { on(...): this }` is the standard,
             // intentional pattern for typing an EventEmitter subclass's event map —
             // not an accidental unsafe merge.
             "@typescript-eslint/no-unsafe-declaration-merging": "off",
+        },
+    },
+    {
+        // Plain CommonJS config/tooling files — `require()` is the correct style here,
+        // not a stand-in for a circular-import workaround (all of those were removed
+        // from the TS source in favor of real static imports).
+        files: ["eslint.config.js", "scripts/**/*.js"],
+        rules: {
+            "@typescript-eslint/no-require-imports": "off",
         },
     },
     eslintConfigPrettier

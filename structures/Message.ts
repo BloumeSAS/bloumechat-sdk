@@ -2,6 +2,7 @@ import { Base } from "./Base";
 import { BloumeChat } from "../bloumechat";
 import { User } from "./User";
 import type { Member } from "./Member";
+import { Channel } from "./Channel";
 import { EmbedBuilder, EmbedPayload } from "./EmbedBuilder";
 import { BloumeChatAuthError } from "../errors/BloumeChatAuthError";
 import type { ReactionUserDTO, MessageReactionEventData } from "./dto";
@@ -43,14 +44,10 @@ export class Message extends Base {
     /**
      * The channel the message was sent in.
      */
-    /**
-     * The channel the message was sent in.
-     */
-    get channel() {
-        const ChannelClass = require("./Channel").Channel;
+    get channel(): Channel {
         return (
             this.client.channels.cache.get(this.channelId) ||
-            new ChannelClass(this.client, {
+            new Channel(this.client, {
                 id: this.channelId,
                 publicId: this.channelId,
                 serverId: this.serverId,

@@ -1,6 +1,6 @@
 import { BaseManager } from "./BaseManager";
 import { Role } from "../structures/Role";
-import { Guild } from "../structures/Guild";
+import type { Guild } from "../structures/Guild";
 
 /**
  * Manages API methods for roles and stores their cache.
