@@ -1,0 +1,56 @@
+{
+    "name": "bloumechat",
+    "version": "1.4.0",
+    "description": "Official JavaScript/TypeScript SDK for BloumeChat — build bots, automations and integrations with a strongly-typed, Discord-like API.",
+    "main": "./dist/index.js",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsup index.ts --format cjs,esm --dts --clean",
+        "dev": "tsup index.ts --format cjs,esm --watch --dts",
+        "lint": "tsc --noEmit",
+        "release": "npm run build && npm version patch && npm publish",
+        "publish-sdk": "npm run build && npm publish",
+        "prepublishOnly": "npm run build"
+    },
+    "keywords": [
+        "bloumechat",
+        "sdk",
+        "chat",
+        "api",
+        "bot",
+        "typescript",
+        "websocket",
+        "realtime"
+    ],
+    "author": "BloumeSAS",
+    "license": "ISC",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/BloumeSAS/bloumechat-sdk.git"
+    },
+    "homepage": "https://github.com/BloumeSAS/bloumechat-sdk#readme",
+    "bugs": {
+        "url": "https://github.com/BloumeSAS/bloumechat-sdk/issues"
+    },
+    "engines": {
+        "node": ">=18"
+    },
+    "dependencies": {
+        "socket.io-client": "^4.8.3"
+    },
+    "devDependencies": {
+        "tsup": "^8.0.2",
+        "typescript": "^5.3.3"
+    }
+}
