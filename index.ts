@@ -1,6 +1,9 @@
 // Core client
 export * from "./bloumechat";
 
+// Errors
+export * from "./errors";
+
 // Structures
 export * from "./structures/User";
 export * from "./structures/Message";

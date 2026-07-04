@@ -2,118 +2,23 @@ import { io, Socket } from "socket.io-client";
 import { EventEmitter } from "events";
 import { User } from "./structures/User";
 import { Message } from "./structures/Message";
-import { Channel } from "./structures/Channel";
-import { Member } from "./structures/Member";
 import { DMChannel } from "./structures/DMChannel";
 import { Invite } from "./structures/Invite";
 import { Notification } from "./structures/Notification";
-import { Role } from "./structures/Role";
 import { UserManager } from "./managers/UserManager";
 import { GuildManager } from "./managers/GuildManager";
 import { ChannelManager } from "./managers/ChannelManager";
 import { MemberManager } from "./managers/MemberManager";
 import { EmbedBuilder, EmbedPayload } from "./structures/EmbedBuilder";
+import { RestManager, type ApiCallOptions } from "./rest/RestManager";
+import { GatewayManager } from "./gateway/GatewayManager";
+import { BloumeChatAuthError } from "./errors/BloumeChatAuthError";
+import type { ActivityData, PresenceData, ProfileUpdateData, ClientEvents } from "./types";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+export type { ActivityData, PresenceData, ActivityUpdateData, ProfileUpdateData, ClientEvents } from "./types";
+export type { ApiCallOptions } from "./rest/RestManager";
 
-export interface ActivityData {
-    type: "using" | "browsing" | "listening" | "playing";
-    name: string;
-    details?: string;
-    startedAt?: number;
-}
-
-export interface PresenceData {
-    status?: "online" | "idle" | "dnd" | "invisible";
-    activity?: ActivityData | null;
-}
-
-export interface ActivityUpdateData {
-    userPublicId: string;
-    activity: (ActivityData & { startedAt: number }) | null;
-}
-
-export interface ProfileUpdateData {
-    /** New username */
-    name?: string;
-    /** Short bio (null to clear) */
-    bio?: string | null;
-    /** Custom tag/discriminator (null to reset to default) */
-    tag?: string | null;
-    /** Avatar URL (null to reset to default) */
-    image?: string | null;
-    /** Banner image URL (null to clear) */
-    banner?: string | null;
-    /** Banner solid color in hex (null to clear) */
-    bannerColor?: string | null;
-}
-
-/**
- * Every event the client can emit, keyed by name, with the exact argument
- * tuple each listener receives. Consumers get full autocomplete + type
- * checking on `client.on(...)` instead of `data: any` everywhere.
- */
-export interface ClientEvents {
-    ready: [];
-    reconnect: [];
-    disconnect: [reason: string];
-    error: [error: Error];
-
-    message: [message: Message];
-    messageCreate: [message: Message];
-    messageUpdate: [data: any];
-    messageDelete: [data: any];
-    messageReactionAdd: [data: any];
-    messageReactionRemoveAll: [data: any];
-    messagePin: [data: any];
-
-    guildUpdate: [data: any];
-    guildDelete: [data: any];
-    guildMemberAdd: [data: any];
-    guildMemberRemove: [data: any];
-    /** Fired when a member's roles/nickname change (via `server:member_update`). */
-    guildMemberUpdate: [data: any];
-    /** Fired when a member is banned — derived from `server:member_removed` with `reason: "banned"`. */
-    guildBanAdd: [data: any];
-    /** Fired when a ban is lifted (via `server:ban_revoked`). */
-    guildBanRemove: [data: any];
-    guildChannelsUpdate: [data: any];
-    guildCategoriesUpdate: [data: any];
-
-    roleCreate: [role: Role];
-    roleUpdate: [role: Role];
-    roleDelete: [role: Role | string];
-    roleOrderUpdate: [data: any];
-
-    userUpdate: [data: any];
-    typingStart: [data: any];
-    typingStop: [data: any];
-    presenceUpdate: [data: any];
-    activityUpdate: [data: ActivityUpdateData];
-
-    voiceStateUpdate: [data: any];
-
-    dmNew: [data: any];
-    notificationNew: [data: any];
-}
-
-/** Options controlling REST request behavior (timeout, retries, rate limiting). */
-export interface ApiCallOptions extends RequestInit {
-    headers?: Record<string, string>;
-    /** Max time (ms) to wait for a response before aborting. Default 15000. */
-    timeoutMs?: number;
-    /** Max retry attempts on network failure / 429 / 502 / 503 / 504. Default 3. */
-    maxRetries?: number;
-}
-
-const DEFAULT_TIMEOUT_MS = 15_000;
-const DEFAULT_MAX_RETRIES = 3;
-const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
 const ALLOWED_HOSTS = new Set(["bloumechat.com", "api.bloumechat.com", "localhost"]);
-
-function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 // ─── Main client ──────────────────────────────────────────────────────────────
 
@@ -147,12 +52,8 @@ export class BloumeChat extends EventEmitter {
     // Bot token, kept out of enumerable/JSON/inspect output — see #_defineHiddenToken.
     private _token: string | null = null;
 
-    // Simple client-side concurrency limiter so a runaway bot loop throttles
-    // itself instead of hammering the API and getting hard-banned by the
-    // server-side rate limiter.
-    private static readonly MAX_CONCURRENT_REQUESTS = 5;
-    private _activeRequests = 0;
-    private _requestQueue: Array<() => void> = [];
+    private readonly rest: RestManager;
+    private readonly gateway: GatewayManager;
 
     public readonly baseUrl: string = "https://bloumechat.com/api/v2";
     public readonly socketUrl: string = "https://api.bloumechat.com";
@@ -166,6 +67,8 @@ export class BloumeChat extends EventEmitter {
         this.guilds = new GuildManager(this);
         this.channels = new ChannelManager(this);
         this.members = new MemberManager(this);
+        this.rest = new RestManager(this.baseUrl, () => this._token);
+        this.gateway = new GatewayManager(this);
         this._defineHiddenToken();
         this._warnIfHostOverridden();
     }
@@ -226,9 +129,11 @@ export class BloumeChat extends EventEmitter {
      * which defeats the point of a "safe to log" representation.
      */
     private _toSafeSnapshot(): Record<string, unknown> {
-        const { users, guilds, channels, members, socket, user, _requestQueue, ...rest } = this as any;
+        const { users, guilds, channels, members, socket, user, rest, gateway, ...rest2 } = this as any;
+        void rest;
+        void gateway;
         return {
-            ...rest,
+            ...rest2,
             _token: this._token ? "[REDACTED]" : null,
             user: user ? { id: user.id, username: user.username, tag: user.tag } : null,
             users: `[UserManager cache=${users.cache.size}]`,
@@ -256,7 +161,7 @@ export class BloumeChat extends EventEmitter {
      */
     async login(token: string): Promise<void> {
         if (!token || typeof token !== "string") {
-            throw new Error("login() requires a non-empty bot token string.");
+            throw new BloumeChatAuthError("login() requires a non-empty bot token string.");
         }
         this._token = token;
 
@@ -269,6 +174,10 @@ export class BloumeChat extends EventEmitter {
                 reconnectionDelay: 1_000,
                 reconnectionDelayMax: 30_000,
             });
+
+            // All "just forward this event" / cache-mutation wiring lives in
+            // GatewayManager — this client only owns the ready-sequencing below.
+            this.gateway.attach(this.socket);
 
             this.socket.on("connect", () => {
                 if (this._isReady) {
@@ -285,95 +194,10 @@ export class BloumeChat extends EventEmitter {
                 }).catch(reject);
             });
 
-            this.socket.on("disconnect", reason => this.emit("disconnect", reason));
             this.socket.on("connect_error", error => {
                 this.emit("error", error);
                 if (!this._isReady) reject(error);
             });
-
-            // ── Messages ──────────────────────────────────────────────────
-            this.socket.on("message:new", data => {
-                const message = new Message(this, data);
-                this.emit("messageCreate", message);
-                this.emit("message", message);
-            });
-            this.socket.on("message:updated",       data => this.emit("messageUpdate", data));
-            this.socket.on("message:deleted",       data => this.emit("messageDelete", data));
-            this.socket.on("message:reaction",      data => this.emit("messageReactionAdd", data));
-            this.socket.on("message:reaction_clear",data => this.emit("messageReactionRemoveAll", data));
-            this.socket.on("message:pinned",        data => this.emit("messagePin", data));
-
-            // ── Guilds ────────────────────────────────────────────────────
-            this.socket.on("server:updated",          data => this.emit("guildUpdate", data));
-            this.socket.on("server:deleted",          data => this.emit("guildDelete", data));
-            this.socket.on("server:member_add",       data => this.emit("guildMemberAdd", data));
-            this.socket.on("server:member_remove",    data => this.emit("guildMemberRemove", data));
-            this.socket.on("server:member_removed",   data => {
-                this.emit("guildMemberRemove", data);
-                // The server reuses this single event for both kicks and bans,
-                // distinguished only by `reason` — surface bans as their own
-                // event so bot authors don't have to string-match `reason` themselves.
-                if (data?.reason === "banned") this.emit("guildBanAdd", data);
-            });
-            this.socket.on("server:member_update",    data => this.emit("guildMemberUpdate", data));
-            this.socket.on("server:ban_revoked",      data => this.emit("guildBanRemove", data));
-            this.socket.on("server:you_removed",      data => this.emit("guildDelete", data));
-            this.socket.on("server:you_left",         data => this.emit("guildDelete", data));
-            this.socket.on("server:channels_updated", data => this.emit("guildChannelsUpdate", data));
-            this.socket.on("server:categories_updated",data => this.emit("guildCategoriesUpdate", data));
-            this.socket.on("server:role_create", data => {
-                const guild = this.guilds.cache.get(data.serverPublicId);
-                if (guild) {
-                    const role = new Role(this, data.role);
-                    guild.roles.cache.set(role.id, role);
-                    this.emit("roleCreate", role);
-                }
-            });
-            this.socket.on("server:role_update", data => {
-                const guild = this.guilds.cache.get(data.serverPublicId);
-                if (guild) {
-                    const role = new Role(this, data.role);
-                    guild.roles.cache.set(role.id, role);
-                    this.emit("roleUpdate", role);
-                }
-            });
-            this.socket.on("server:role_delete", data => {
-                const guild = this.guilds.cache.get(data.serverPublicId);
-                if (guild) {
-                    const role = guild.roles.cache.get(data.rolePublicId);
-                    guild.roles.cache.delete(data.rolePublicId);
-                    this.emit("roleDelete", role || data.rolePublicId);
-                }
-            });
-            this.socket.on("server:roles_order_update", data => {
-                const guild = this.guilds.cache.get(data.serverPublicId);
-                if (guild && data.roles) {
-                    for (const r of data.roles) {
-                        const cached = guild.roles.cache.get(r.publicId);
-                        if (cached) {
-                            cached.position = r.position;
-                        }
-                    }
-                    this.emit("roleOrderUpdate", data);
-                }
-            });
-
-            // ── Users / Presence ──────────────────────────────────────────
-            this.socket.on("user:update",     data => this.emit("userUpdate", data));
-            this.socket.on("typing:start",    data => this.emit("typingStart", data));
-            this.socket.on("typing:stop",     data => this.emit("typingStop", data));
-            this.socket.on("presence:update", data => this.emit("presenceUpdate", data));
-
-            // ── Activity (RPC) ────────────────────────────────────────────
-            this.socket.on("activity:update", (data: ActivityUpdateData) => this.emit("activityUpdate", data));
-
-            // ── Voice ─────────────────────────────────────────────────────
-            this.socket.on("voice:state-update", data => this.emit("voiceStateUpdate", data));
-            this.socket.on("voice:user-left",    data => this.emit("voiceStateUpdate", data));
-
-            // ── DMs / Notifications ───────────────────────────────────────
-            this.socket.on("dm:new",           data => this.emit("dmNew", data));
-            this.socket.on("notification:new", data => this.emit("notificationNew", data));
         });
     }
 
@@ -390,25 +214,6 @@ export class BloumeChat extends EventEmitter {
 
     // ─── API helper ──────────────────────────────────────────────────────────
 
-    private async _acquireSlot(): Promise<void> {
-        if (this._activeRequests < BloumeChat.MAX_CONCURRENT_REQUESTS) {
-            this._activeRequests++;
-            return;
-        }
-        return new Promise(resolve => {
-            this._requestQueue.push(() => {
-                this._activeRequests++;
-                resolve();
-            });
-        });
-    }
-
-    private _releaseSlot(): void {
-        this._activeRequests--;
-        const next = this._requestQueue.shift();
-        if (next) next();
-    }
-
     /**
      * Makes a raw authenticated call to the BloumeChat REST API.
      *
@@ -417,65 +222,8 @@ export class BloumeChat extends EventEmitter {
      * backoff on network errors or 429/502/503/504 responses (respecting a
      * `Retry-After` header when present).
      */
-    public async apiCall(
-        path: string,
-        options: ApiCallOptions = {}
-    ): Promise<any> {
-        const { timeoutMs = DEFAULT_TIMEOUT_MS, maxRetries = DEFAULT_MAX_RETRIES, ...init } = options;
-
-        await this._acquireSlot();
-        try {
-            let attempt = 0;
-            // eslint-disable-next-line no-constant-condition
-            while (true) {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-                try {
-                    const res = await fetch(`${this.baseUrl}${path}`, {
-                        ...init,
-                        signal: controller.signal,
-                        headers: {
-                            Authorization: `Bearer ${this._token}`,
-                            "Content-Type": "application/json",
-                            "X-Bloume-SDK": "true",
-                            "User-Agent": "BloumeChat-SDK/1.3",
-                            ...init.headers,
-                        },
-                    });
-
-                    if (!res.ok) {
-                        if (RETRYABLE_STATUS.has(res.status) && attempt < maxRetries) {
-                            const retryAfterHeader = res.headers.get("Retry-After");
-                            const retryAfterMs = retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : NaN;
-                            const backoffMs = Number.isFinite(retryAfterMs) ? retryAfterMs : 2 ** attempt * 500;
-                            await sleep(Math.min(backoffMs, 30_000));
-                            attempt++;
-                            continue;
-                        }
-                        const body = await res.text();
-                        throw new Error(`API Error ${res.status}: ${body.slice(0, 500)}`);
-                    }
-
-                    if (res.status === 204) return null;
-                    return await res.json();
-                } catch (err: any) {
-                    const isAbort = err?.name === "AbortError";
-                    const isNetworkError = isAbort || err?.name === "TypeError";
-                    if (isNetworkError && attempt < maxRetries) {
-                        await sleep(Math.min(2 ** attempt * 500, 30_000));
-                        attempt++;
-                        continue;
-                    }
-                    if (isAbort) throw new Error(`API request timed out after ${timeoutMs}ms: ${path}`);
-                    throw err;
-                } finally {
-                    clearTimeout(timeout);
-                }
-            }
-        } finally {
-            this._releaseSlot();
-        }
+    public async apiCall(path: string, options: ApiCallOptions = {}): Promise<any> {
+        return this.rest.request(path, options);
     }
 
     // ─── Messaging ───────────────────────────────────────────────────────────
@@ -488,7 +236,7 @@ export class BloumeChat extends EventEmitter {
         channelId: string,
         options: string | EmbedBuilder | { content?: string; embeds?: Array<EmbedBuilder | EmbedPayload | Record<string, unknown>>; replyToId?: string }
     ): Promise<Message> {
-        if (!this.socket) throw new Error("Not connected");
+        if (!this.socket) throw new BloumeChatAuthError("sendMessage() requires an active connection — call login() first.");
 
         let content = "";
         let embeds: Array<EmbedPayload | Record<string, unknown>> = [];
@@ -510,7 +258,7 @@ export class BloumeChat extends EventEmitter {
         // the server would reject it anyway, but failing fast avoids a 10s
         // wait for a socket ack that will never come.
         if (!content && embeds.length === 0) {
-            throw new Error("sendMessage requires non-empty content or at least one embed.");
+            throw new BloumeChatAuthError("sendMessage requires non-empty content or at least one embed.");
         }
 
         const nonce = Math.random().toString(36).substring(2, 15);
@@ -541,7 +289,7 @@ export class BloumeChat extends EventEmitter {
      * Pass `null` to clear.
      */
     async setActivity(activity: ActivityData | null): Promise<void> {
-        if (!this.socket) throw new Error("Not connected");
+        if (!this.socket) throw new BloumeChatAuthError("setActivity() requires an active connection — call login() first.");
         if (activity === null) {
             this.socket.emit("activity:update", { type: "none", name: "" });
             return;
@@ -558,7 +306,7 @@ export class BloumeChat extends EventEmitter {
      * Sets the bot's presence status.
      */
     async setStatus(status: "online" | "idle" | "dnd" | "invisible"): Promise<void> {
-        if (!this.socket) throw new Error("Not connected");
+        if (!this.socket) throw new BloumeChatAuthError("setStatus() requires an active connection — call login() first.");
         this.socket.emit("presence:update", { status });
         if (this.user) this.user.status = status;
         await this.apiCall("/users/settings", { method: "PATCH", body: JSON.stringify({ status }) });
@@ -568,7 +316,7 @@ export class BloumeChat extends EventEmitter {
      * Sets the bot's full presence (status + activity) in one call.
      */
     async setPresence(data: PresenceData): Promise<void> {
-        if (!this.socket) throw new Error("Not connected");
+        if (!this.socket) throw new BloumeChatAuthError("setPresence() requires an active connection — call login() first.");
         if (data.status) await this.setStatus(data.status);
         if (data.activity !== undefined) await this.setActivity(data.activity);
     }
