@@ -4,7 +4,6 @@ import { User } from "./structures/User";
 import { Message } from "./structures/Message";
 import { DMChannel } from "./structures/DMChannel";
 import { Invite } from "./structures/Invite";
-import { Notification } from "./structures/Notification";
 import { UserManager } from "./managers/UserManager";
 import { GuildManager } from "./managers/GuildManager";
 import { ChannelManager } from "./managers/ChannelManager";
@@ -393,16 +392,6 @@ export class BloumeChat extends EventEmitter {
     async fetchInvite(code: string): Promise<Invite> {
         const data = await this.apiCall(`/invites/${code}`);
         return new Invite(this, code, data);
-    }
-
-    // ─── Notifications ────────────────────────────────────────────────────────
-
-    /**
-     * Fetches all unread notifications.
-     */
-    async fetchNotifications(): Promise<Notification[]> {
-        const data = await this.apiCall("/notifications/unread");
-        return (data.notifications || []).map((n: any) => new Notification(this, n));
     }
 
     // ─── Search ───────────────────────────────────────────────────────────────

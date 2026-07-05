@@ -16,7 +16,6 @@ export * from "./structures/Category";
 export * from "./structures/Webhook";
 export * from "./structures/Emoji";
 export * from "./structures/Invite";
-export * from "./structures/Notification";
 export * from "./structures/EmbedBuilder";
 export * from "./structures/dto";
 

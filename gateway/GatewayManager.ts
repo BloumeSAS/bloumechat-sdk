@@ -56,8 +56,19 @@ export class GatewayManager {
             client.guilds.cache.set(guild.id, guild);
             client.emit("guildCreate", guild);
         });
-        socket.on("server:updated", data => client.emit("guildUpdate", data));
-        socket.on("server:deleted", data => client.emit("guildDelete", data));
+        socket.on("server:updated", data => {
+            const guild = client.guilds.cache.get(data.serverPublicId);
+            if (guild) {
+                guild.name = data.name ?? guild.name;
+                guild.icon = data.imageUrl ?? guild.icon;
+            }
+            client.emit("guildUpdate", guild ?? data);
+        });
+        socket.on("server:deleted", data => {
+            const guild = client.guilds.cache.get(data.serverPublicId);
+            client.guilds.cache.delete(data.serverPublicId);
+            client.emit("guildDelete", guild ?? data);
+        });
         socket.on("server:member_add", data => {
             const member = new Member(client, { ...data.member, serverPublicId: data.serverPublicId });
             client.members.cache.set(member.id, member);
@@ -75,10 +86,25 @@ export class GatewayManager {
             // event so bot authors don't have to string-match `reason` themselves.
             if (data?.reason === "banned") client.emit("guildBanAdd", data);
         });
-        socket.on("server:member_update", data => client.emit("guildMemberUpdate", data));
+        socket.on("server:member_update", data => {
+            // The payload only carries the ids, not the changed fields — refetch
+            // to get the new roles/nickname and keep client.members.cache correct.
+            client.members
+                .fetch(data.serverPublicId, data.memberPublicId)
+                .then(member => client.emit("guildMemberUpdate", member))
+                .catch(() => client.emit("guildMemberUpdate", data));
+        });
         socket.on("server:ban_revoked", data => client.emit("guildBanRemove", data));
-        socket.on("server:you_removed", data => client.emit("guildDelete", data));
-        socket.on("server:you_left", data => client.emit("guildDelete", data));
+        socket.on("server:you_removed", data => {
+            const guild = client.guilds.cache.get(data.serverPublicId);
+            client.guilds.cache.delete(data.serverPublicId);
+            client.emit("guildDelete", guild ?? data);
+        });
+        socket.on("server:you_left", data => {
+            const guild = client.guilds.cache.get(data.serverPublicId);
+            client.guilds.cache.delete(data.serverPublicId);
+            client.emit("guildDelete", guild ?? data);
+        });
         socket.on("server:channels_updated", data => client.emit("guildChannelsUpdate", data));
         socket.on("server:categories_updated", data => client.emit("guildCategoriesUpdate", data));
         socket.on("server:role_create", data => {
@@ -119,10 +145,22 @@ export class GatewayManager {
         });
 
         // ── Users / Presence ──────────────────────────────────────────
-        socket.on("user:update", data => client.emit("userUpdate", data));
+        socket.on("user:update", data => {
+            const user = client.users.cache.get(data.userPublicId);
+            if (user) {
+                if (data.name !== undefined) user.username = data.name;
+                if (data.tag !== undefined) user.tag = data.tag;
+                if (data.image !== undefined) user.avatar = data.image;
+            }
+            client.emit("userUpdate", user ?? data);
+        });
         socket.on("typing:start", data => client.emit("typingStart", data));
         socket.on("typing:stop", data => client.emit("typingStop", data));
-        socket.on("presence:update", data => client.emit("presenceUpdate", data));
+        socket.on("presence:update", data => {
+            const user = client.users.cache.get(data.userPublicId);
+            if (user) user.status = data.status;
+            client.emit("presenceUpdate", data);
+        });
 
         // ── Activity (RPC) ────────────────────────────────────────────
         socket.on("activity:update", (data: ActivityUpdateData) => client.emit("activityUpdate", data));
@@ -131,8 +169,7 @@ export class GatewayManager {
         socket.on("voice:state-update", data => client.emit("voiceStateUpdate", data));
         socket.on("voice:user-left", data => client.emit("voiceStateUpdate", data));
 
-        // ── DMs / Notifications ───────────────────────────────────────
+        // ── DMs ─────────────────────────────────────────────────────────
         socket.on("dm:new", data => client.emit("dmNew", data));
-        socket.on("notification:new", data => client.emit("notificationNew", data));
     }
 }

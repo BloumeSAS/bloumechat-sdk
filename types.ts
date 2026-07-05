@@ -85,5 +85,4 @@ export interface ClientEvents {
     voiceStateUpdate: [data: any];
 
     dmNew: [data: any];
-    notificationNew: [data: any];
 }

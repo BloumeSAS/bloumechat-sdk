@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-07-05
+
+### Breaking
+
+- **Removed `client.fetchNotifications()`, the `Notification` structure, and the `notificationNew` event.** A bot should not have read access to the personal notification inbox of the account it runs as (mentions, friend requests, server invites…) — this was personal user data, not a bot-appropriate resource. If you need to react to a mention, listen to `messageCreate` and inspect `message.mentions` instead.
+- **`guildUpdate`/`guildDelete`/`guildMemberUpdate` now emit typed instances (`Guild`/`Member`) instead of the raw socket payload** (falls back to the raw payload only if the entry wasn't in cache, e.g. after a process restart). Code that read `data.serverPublicId`/`data.memberPublicId` directly off these event payloads needs to switch to the instance's properties (`guild.id`, `member.serverId`, `member.user.id`, etc).
+
+### Fixed
+
+- **`client.guilds.cache` was never updated on server rename or on the bot being removed/leaving a server** — `guildUpdate` didn't patch the cached `Guild`'s `name`/`icon`, and `guildDelete` (via `server:deleted`/`server:you_removed`/`server:you_left`) never removed the entry, so a departed server stayed in `client.guilds.cache` forever.
+- **`client.users.cache` was never updated on profile/presence changes** — `userUpdate` and `presenceUpdate` now patch the cached `User`'s `username`/`tag`/`avatar`/`status`.
+- **`guildMemberUpdate` now reflects the actual new roles/nickname** — the raw socket payload only ever carried ids, so the SDK now refetches the member and emits the up-to-date `Member`.
+
 ## [1.6.0] - 2026-07-05
 
 ### Added
