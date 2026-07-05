@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-07-05
+
+### Added
+- `guildCreate` event: fired when the bot is added to a new server, via a new `server:joined` socket event — the `Guild` is already in `client.guilds.cache` by the time the listener runs. Previously there was no way for a bot to react to being added to a server in real time.
+
+### Fixed
+- **`client.members.cache` was never actually updated on member join/leave/kick/ban.** `guildMemberAdd`/`guildMemberRemove` were re-emitted from the socket payload as-is without touching the cache, so `client.members.cache` silently went stale the moment any member joined or left. `GatewayManager` now constructs/caches a real `Member` on `server:member_add` and removes the matching cached entry (matched by the underlying user's publicId, since the removal payloads don't carry the member row's own id) on `server:member_remove`/`server:member_removed`. `guildMemberAdd` now emits the `Member` instance instead of the raw payload.
+- **`Message#fetchReactions()` returned the raw nested API response instead of the flat `ReactionUserDTO[]` its own type signature promised**, silently breaking at runtime for any consumer that trusted the types (e.g. `reactions[0].userName` was `undefined`). It now correctly filters to the requested emoji's group and flattens `users` to `{ userPublicId, userName, userImage }`.
+- **`ChannelManager.fetch()` / `UserManager.fetch()` were unusable** — `GET /channels/:id` and `GET /users/:id` were never implemented on the BloumeChat API, so both calls resolved against the platform's HTML 404 page instead of JSON. Added the missing routes server-side; both methods now work as documented.
+
+### Removed
+- The platform no longer auto-posts a `"**{app}** a rejoint le serveur !"` system message when a bot is added via OAuth2 — this was unsolicited and not something a bot author could opt out of. Use the new `guildCreate` event if you want a bot-authored welcome message instead.
+
 ## [1.5.0] - 2026-07-05
 
 ### Added

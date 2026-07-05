@@ -3,6 +3,8 @@ import type { BloumeChat } from "../bloumechat";
 import type { ActivityUpdateData } from "../types";
 import { Message } from "../structures/Message";
 import { Role } from "../structures/Role";
+import { Guild } from "../structures/Guild";
+import { Member } from "../structures/Member";
 
 /**
  * Wires every "forward this socket event to the client" and cache-mutation
@@ -14,6 +16,22 @@ import { Role } from "../structures/Role";
  */
 export class GatewayManager {
     constructor(private readonly client: BloumeChat) {}
+
+    /**
+     * The real-time payloads for leave/kick/ban all identify the member by
+     * the underlying user's publicId (not the member row's own id used by
+     * `MemberManager.fetchAll`), so removal has to search by that instead of
+     * a direct cache key lookup.
+     */
+    private removeMemberFromCache(serverPublicId: string, userPublicId: string): Member | undefined {
+        for (const [key, member] of this.client.members.cache) {
+            if (member.serverId === serverPublicId && member.user.id === userPublicId) {
+                this.client.members.cache.delete(key);
+                return member;
+            }
+        }
+        return undefined;
+    }
 
     attach(socket: Socket): void {
         const client = this.client;
@@ -33,12 +51,25 @@ export class GatewayManager {
         socket.on("message:pinned", data => client.emit("messagePin", data));
 
         // ── Guilds ────────────────────────────────────────────────────
+        socket.on("server:joined", data => {
+            const guild = new Guild(client, data);
+            client.guilds.cache.set(guild.id, guild);
+            client.emit("guildCreate", guild);
+        });
         socket.on("server:updated", data => client.emit("guildUpdate", data));
         socket.on("server:deleted", data => client.emit("guildDelete", data));
-        socket.on("server:member_add", data => client.emit("guildMemberAdd", data));
-        socket.on("server:member_remove", data => client.emit("guildMemberRemove", data));
+        socket.on("server:member_add", data => {
+            const member = new Member(client, { ...data.member, serverPublicId: data.serverPublicId });
+            client.members.cache.set(member.id, member);
+            client.emit("guildMemberAdd", member);
+        });
+        socket.on("server:member_remove", data => {
+            const removed = this.removeMemberFromCache(data.serverPublicId, data.memberPublicId);
+            client.emit("guildMemberRemove", removed ?? data);
+        });
         socket.on("server:member_removed", data => {
-            client.emit("guildMemberRemove", data);
+            const removed = this.removeMemberFromCache(data.serverPublicId, data.memberPublicId);
+            client.emit("guildMemberRemove", removed ?? data);
             // The server reuses this single event for both kicks and bans,
             // distinguished only by `reason` — surface bans as their own
             // event so bot authors don't have to string-match `reason` themselves.

@@ -159,7 +159,16 @@ export class Message extends Base {
         const data = await this.client.apiCall(`/chat/${this.channelId}/reactions/${this.id}/details?emoji=${urlEmoji}`, {
             method: "GET",
         });
-        return data.reactions || [];
+        // The endpoint returns every emoji's reaction group nested under
+        // `reactions`, each with its own `users` array — flatten to just the
+        // group matching `emoji`, mapped to the flat shape this method promises.
+        const group = (data.reactions || []).find((r: any) => r.emoji === emoji);
+        if (!group) return [];
+        return group.users.map((u: any) => ({
+            userPublicId: u.publicId,
+            userName: u.name,
+            userImage: u.image,
+        }));
     }
 
     /**

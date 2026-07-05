@@ -1,5 +1,7 @@
 import type { Message } from "./structures/Message";
 import type { Role } from "./structures/Role";
+import type { Guild } from "./structures/Guild";
+import type { Member } from "./structures/Member";
 
 export interface ActivityData {
     type: "using" | "browsing" | "listening" | "playing";
@@ -52,9 +54,13 @@ export interface ClientEvents {
     messageReactionRemoveAll: [data: any];
     messagePin: [data: any];
 
+    /** Fired when the bot is added to a new server (via `server:joined`) — the guild is already in `client.guilds.cache` by the time this fires. */
+    guildCreate: [guild: Guild];
     guildUpdate: [data: any];
     guildDelete: [data: any];
-    guildMemberAdd: [data: any];
+    /** Fired when a member joins — `client.members.cache` is already updated by the time this fires. */
+    guildMemberAdd: [member: Member];
+    /** Fired when a member leaves, is kicked, or is banned — `client.members.cache` has already had the entry removed by the time this fires. */
     guildMemberRemove: [data: any];
     /** Fired when a member's roles/nickname change (via `server:member_update`). */
     guildMemberUpdate: [data: any];
