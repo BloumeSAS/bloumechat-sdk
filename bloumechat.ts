@@ -8,6 +8,7 @@ import { UserManager } from "./managers/UserManager";
 import { GuildManager } from "./managers/GuildManager";
 import { ChannelManager } from "./managers/ChannelManager";
 import { MemberManager } from "./managers/MemberManager";
+import { VoiceManager } from "./managers/VoiceManager";
 import { EmbedBuilder, EmbedPayload } from "./structures/EmbedBuilder";
 import { RestManager, type ApiCallOptions } from "./rest/RestManager";
 import { GatewayManager } from "./gateway/GatewayManager";
@@ -41,6 +42,8 @@ export class BloumeChat extends EventEmitter {
     public channels: ChannelManager;
     /** Manager for server members */
     public members: MemberManager;
+    /** Manages the bot's voice connection (join a channel, play audio) */
+    public voice: VoiceManager;
 
     /** Date the client first became ready (null before login) */
     public readyAt: Date | null = null;
@@ -66,6 +69,7 @@ export class BloumeChat extends EventEmitter {
         this.guilds = new GuildManager(this);
         this.channels = new ChannelManager(this);
         this.members = new MemberManager(this);
+        this.voice = new VoiceManager(this);
         this.rest = new RestManager(this.baseUrl, () => this._token);
         this.gateway = new GatewayManager(this);
         this._defineHiddenToken();
@@ -132,7 +136,7 @@ export class BloumeChat extends EventEmitter {
      * which defeats the point of a "safe to log" representation.
      */
     private _toSafeSnapshot(): Record<string, unknown> {
-        const { users, guilds, channels, members, socket, user, rest, gateway, ...rest2 } = this as any;
+        const { users, guilds, channels, members, voice, socket, user, rest, gateway, ...rest2 } = this as any;
         void rest;
         void gateway;
         return {
@@ -143,6 +147,7 @@ export class BloumeChat extends EventEmitter {
             guilds: `[GuildManager cache=${guilds.cache.size}]`,
             channels: `[ChannelManager cache=${channels.cache.size}]`,
             members: `[MemberManager cache=${members.cache.size}]`,
+            voice: `[VoiceManager connection=${voice.connection ? voice.connection.channelId : "none"}]`,
             socket: socket ? "[Socket]" : null,
         };
     }
@@ -215,6 +220,7 @@ export class BloumeChat extends EventEmitter {
      * Disconnects the bot and cleans up all listeners.
      */
     destroy(): void {
+        this.voice.leave();
         if (this.socket) {
             this.socket.disconnect();
             this.socket = null;

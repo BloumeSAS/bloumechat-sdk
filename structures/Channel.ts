@@ -2,10 +2,13 @@ import { Base } from "./Base";
 import { BloumeChat } from "../bloumechat";
 import { Message } from "./Message";
 import { BloumeChatAuthError } from "../errors/BloumeChatAuthError";
+import { BloumeChatVoiceError } from "../errors/BloumeChatVoiceError";
 import type { EmbedBuilder, EmbedPayload } from "./EmbedBuilder";
 import type { Webhook } from "./Webhook";
 import { WebhookManager } from "../managers/WebhookManager";
 import type { GuildInviteDTO, PermissionOverrideDTO } from "./dto";
+import type { VoiceConnection } from "../voice/VoiceConnection";
+import type { VoiceJoinOptions } from "../voice/types";
 
 export type { GuildInviteDTO, PermissionOverrideDTO } from "./dto";
 
@@ -113,6 +116,29 @@ export class Channel extends Base {
     stopTyping(): void {
         if (!this.client.getSocket()) throw new BloumeChatAuthError("stopTyping() requires an active connection — call login() first.");
         this.client.getSocket()?.emit("typing:stop", this.id);
+    }
+
+    // ─── Voice ───────────────────────────────────────────────────────────────
+
+    /**
+     * Joins this voice channel, opening a real-time audio connection the bot
+     * can speak through (see {@link VoiceConnection.play}). Leaves any
+     * previously-joined voice channel first.
+     *
+     * @example
+     * const connection = await voiceChannel.join();
+     * connection.play('https://example.com/song.mp3');
+     */
+    async join(options?: VoiceJoinOptions): Promise<VoiceConnection> {
+        if (this.type !== "VOICE") {
+            throw new BloumeChatVoiceError(`Cannot join channel "${this.name}" — it is not a voice channel (type: ${this.type}).`);
+        }
+        return this.client.voice.join(this, options);
+    }
+
+    /** Leaves this voice channel, if the bot is currently connected to it. */
+    leave(): void {
+        if (this.client.voice.connection?.channelId === this.id) this.client.voice.leave();
     }
 
     // ─── Channel management ──────────────────────────────────────────────────

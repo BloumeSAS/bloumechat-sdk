@@ -2,6 +2,29 @@ import type { Message } from "./structures/Message";
 import type { Role } from "./structures/Role";
 import type { Guild } from "./structures/Guild";
 import type { Member } from "./structures/Member";
+import type {
+    VoiceIncomingCallData,
+    VoiceCallCancelledData,
+    VoiceUser,
+    VoiceUserJoinedData,
+    VoiceUserStateData,
+    VoiceUsersSnapshot,
+} from "./voice/types";
+
+export type {
+    VoiceUser,
+    VoiceStateUpdate,
+    VoiceUserJoinedData,
+    VoiceUserLeftData,
+    VoiceUserStateData,
+    VoiceUsersSnapshot,
+    VoiceIncomingCallData,
+    VoiceCallCancelledData,
+    VoiceJoinOptions,
+    PlayOptions,
+    AudioResource,
+    VoiceConnectionState,
+} from "./voice/types";
 
 export interface ActivityData {
     type: "using" | "browsing" | "listening" | "playing";
@@ -82,7 +105,18 @@ export interface ClientEvents {
     presenceUpdate: [data: any];
     activityUpdate: [data: ActivityUpdateData];
 
-    voiceStateUpdate: [data: any];
+    /** Bulk voice-room snapshot (fired on join and on `server:voice-states` replies). */
+    voiceStateUpdate: [data: VoiceUsersSnapshot];
+    /** Fired when any user (including the bot itself) joins a voice channel. */
+    voiceUserJoined: [data: VoiceUserJoinedData];
+    /** Fired when any user leaves a voice channel — also fired (as `voiceStateUpdate`-shaped data) for backwards compatibility. */
+    voiceUserLeft: [data: { channelPublicId: string; userPublicId: string; users: VoiceUser[] }];
+    /** Fired when a participant's mute/deafen/speaking/streaming state changes. */
+    voiceUserState: [data: VoiceUserStateData];
+    /** Fired when the bot receives an incoming DM/channel voice call. */
+    voiceIncomingCall: [data: VoiceIncomingCallData];
+    /** Fired when an incoming call is cancelled before being answered. */
+    voiceCallCancelled: [data: VoiceCallCancelledData];
 
     dmNew: [data: any];
 }

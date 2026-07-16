@@ -28,6 +28,10 @@ export * from "./managers/RoleManager";
 export * from "./managers/InviteManager";
 export * from "./managers/EmojiManager";
 export * from "./managers/WebhookManager";
+export * from "./managers/VoiceManager";
+
+// Voice
+export * from "./voice";
 
 // Utilities
 export * from "./util/Permissions";

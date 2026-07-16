@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-16
+
+### Added
+
+- **Voice channel support** — a bot can now join a voice channel and speak (play music, TTS, sound effects…), similar to `@discordjs/voice`:
+  - `Channel.join(options?)` / `Channel.leave()` on a `"VOICE"` channel, backed by a new `client.voice` (`VoiceManager`).
+  - `VoiceConnection`: `play()`/`pause()`/`resume()`/`stopPlaying()`/`setVolume()` for audio playback (decoded via FFmpeg + Opus, matching BloumeChat's WebRTC mesh voice architecture — one real `RTCPeerConnection` is opened per other participant in the channel, there is no SFU), `setMuted()`/`setDeafened()`, `participants`, and events (`userJoined`, `userLeft`, `userStateUpdate`, `playerStart`, `playerFinish`, `audioPacket` for raw incoming Opus, `error`).
+  - New client events: `voiceUserJoined`, `voiceUserLeft`, `voiceUserState`, `voiceIncomingCall`, `voiceCallCancelled` — previously only `voiceStateUpdate` was forwarded.
+  - New error class `BloumeChatVoiceError`.
+  - New runtime dependencies: `werift` (pure TS/JS WebRTC — no native build step), `prism-media`, `opusscript`. **Requires FFmpeg to be installed** on the machine running the bot for `play()` to work (see the [Voice guide](https://dev.bloume.chat/guide/voice)).
+  - See the [Voice guide](https://dev.bloume.chat/guide/voice) and [Voice API reference](https://dev.bloume.chat/api/voice).
+
 ## [2.0.0] - 2026-07-05
 
 ### Breaking
