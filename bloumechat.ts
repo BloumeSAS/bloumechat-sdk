@@ -157,8 +157,10 @@ export class BloumeChat extends EventEmitter {
      * Only ever invoked via Node's runtime symbol lookup (`util.inspect`), so
      * TypeScript can't see a static reference — hence the suppression below.
      */
-    // @ts-ignore -- TS6133 (declared but never read) only under noUnusedLocals
-    // configs; @ts-expect-error would itself error (TS2578) where the flag is off.
+    // Using @ts-ignore below because @ts-expect-error itself errors (TS2578)
+    // in configs where noUnusedLocals is off.
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore -- TS6133 (declared but never read) only under noUnusedLocals configs.
     private [Symbol.for("nodejs.util.inspect.custom")]() {
         return this._toSafeSnapshot();
     }
