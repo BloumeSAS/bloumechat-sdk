@@ -67,6 +67,9 @@
         "socket.io-client": "^4.8.3",
         "werift": "^0.24.1"
     },
+    "overrides": {
+        "opusscript": "^0.1.1"
+    },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@types/node": "^20.14.0",
