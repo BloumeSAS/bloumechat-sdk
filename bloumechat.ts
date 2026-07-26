@@ -157,7 +157,8 @@ export class BloumeChat extends EventEmitter {
      * Only ever invoked via Node's runtime symbol lookup (`util.inspect`), so
      * TypeScript can't see a static reference — hence the suppression below.
      */
-    // @ts-expect-error -- TS6133: declared but never read (see comment above)
+    // @ts-ignore -- TS6133 (declared but never read) only under noUnusedLocals
+    // configs; @ts-expect-error would itself error (TS2578) where the flag is off.
     private [Symbol.for("nodejs.util.inspect.custom")]() {
         return this._toSafeSnapshot();
     }
