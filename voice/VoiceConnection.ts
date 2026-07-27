@@ -116,9 +116,12 @@ export class VoiceConnection extends EventEmitter {
             void this.pumpAudioStream(participant.identity, stream);
         });
 
-        room.on(RoomEvent.TrackUnsubscribed, (_track: RemoteTrack, _publication: RemoteTrackPublication, participant: RemoteParticipant) => {
-            this.audioStreams.delete(participant.identity);
-        });
+        room.on(
+            RoomEvent.TrackUnsubscribed,
+            (_track: RemoteTrack, _publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+                this.audioStreams.delete(participant.identity);
+            }
+        );
 
         const connectOptions: RoomOptions = {
             autoSubscribe: true,
