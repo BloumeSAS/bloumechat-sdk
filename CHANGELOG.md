@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-07-27
+
+### Breaking
+
+- **Voice transport migrated from a peer-to-peer WebRTC mesh to BloumeChat's self-hosted LiveKit SFU** — the server-side mesh signaling relay (`voice:signal`) this SDK's voice module depended on has been removed; a bot on the 2.x voice API can no longer connect at all. `VoiceConnection` now opens exactly ONE connection to the LiveKit server per channel (via `@livekit/rtc-node`) instead of one `RTCPeerConnection` per other participant — no more O(N) connection/CPU cost per bot.
+  - **Removed**: `VoicePeerConnection` (mesh-only, no SFU equivalent needed — LiveKit handles per-participant routing internally). `IceServerData` / `VoiceConnectionOptions.iceServers` (LiveKit manages its own ICE/TURN; `GET /voice/ice-servers` still exists server-side but is no longer called by this SDK). `WebRTCSignalData` / `WebRTCSignalReceived` types.
+  - **Renamed event**: `audioPacket` (raw Opus RTP payload) → `audioFrame` (`(userPublicId, samples: Int16Array, sampleRate, channels)`, already-decoded PCM — LiveKit's engine does the Opus decode for you now, arguably more useful for speech-to-text use cases).
+  - **New dependency**: `@livekit/rtc-node` (official LiveKit Node SDK, native bindings via NAPI-RS). **Removed dependencies**: `werift`, `opusscript` (mesh-specific, no longer used).
+  - `AudioPlayer`'s internal pipeline changed from FFmpeg → Opus-encode → raw RTP to FFmpeg → PCM frames → `AudioSource.captureFrame()` (LiveKit encodes Opus itself) — no public API change for `play()`/`pause()`/`resume()`/`stopPlaying()`/`setVolume()`.
+  - Frame-level E2EE (LiveKit's Insertable-Streams-based encryption) is applied automatically when the server has `VOICE_E2EE_SECRET` configured — no SDK-side opt-in needed.
+
 ## [2.1.0] - 2026-07-16
 
 ### Added

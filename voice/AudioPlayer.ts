@@ -1,44 +1,46 @@
 import { EventEmitter } from "events";
 import * as prism from "prism-media";
 import type { Readable } from "stream";
+import { AudioFrame, type AudioSource } from "@livekit/rtc-node";
 import { BloumeChatVoiceError } from "../errors/BloumeChatVoiceError";
-import type { VoicePeerConnection } from "./VoicePeerConnection";
 import type { AudioResource, PlayOptions } from "./types";
-import { addUint32, nextUint16, randomUint16, randomUint32 } from "./util";
 
 const FRAME_DURATION_MS = 20;
-/** 48kHz * 20ms — the Opus frame size BloumeChat's browser client (and every WebRTC peer) expects. */
+/** 48kHz * 20ms — the frame size LiveKit (and every WebRTC engine) expects per channel. */
 const SAMPLES_PER_FRAME = 960;
-/** Stop reading from the encoder once this many frames (~2s) are buffered, to bound memory on a slow/stalled connection. */
+const SAMPLE_RATE = 48000;
+const CHANNELS = 2;
+const BYTES_PER_SAMPLE = 2; // s16le
+const FRAME_BYTES = SAMPLES_PER_FRAME * CHANNELS * BYTES_PER_SAMPLE;
+/** Stop reading from the decoder once this many frames (~2s) are buffered, to bound memory on a slow/stalled connection. */
 const MAX_QUEUED_FRAMES = 100;
 /** Resume reading once the buffer drains back below this. */
 const RESUME_QUEUED_FRAMES = 40;
 
 /**
- * Decodes an audio resource (file path, URL, or raw PCM stream) to Opus and
- * dispatches one frame every 20ms to every currently-connected voice peer —
- * the same pipeline shape `@discordjs/voice` uses, adapted for a WebRTC mesh
- * (every peer gets its own `writeAudioFrame` call per tick, since there's no
- * single SFU endpoint to hand the stream to).
+ * Decodes an audio resource (file path, URL, or raw PCM stream) to raw PCM and
+ * dispatches one 20ms frame every tick to LiveKit's `AudioSource` — LiveKit's
+ * own engine does the Opus encoding and fans the result out to every
+ * participant in the room (there's a single shared track now, not one
+ * WebRTC leg per peer to feed like the old mesh implementation had).
  */
 export class AudioPlayer extends EventEmitter {
     private ffmpeg: prism.FFmpeg | null = null;
-    private encoder: prism.opus.Encoder | null = null;
     private volumeTransformer: prism.VolumeTransformer | null = null;
 
-    private readonly frameQueue: Buffer[] = [];
+    /** Raw PCM bytes not yet long enough to form a full 20ms frame. */
+    private pcmRemainder: Buffer = Buffer.alloc(0);
+    private readonly frameQueue: Int16Array[] = [];
     private streamEnded = false;
     private playing = false;
     private paused = false;
     private pausedAt: number | null = null;
     private timer: ReturnType<typeof setTimeout> | null = null;
 
-    private sequenceNumber = randomUint16();
-    private timestamp = randomUint32();
     private frameIndex = 0;
     private startTime = 0;
 
-    constructor(private readonly getPeers: () => Iterable<VoicePeerConnection>) {
+    constructor(private readonly getAudioSource: () => AudioSource | null) {
         super();
     }
 
@@ -74,9 +76,9 @@ export class AudioPlayer extends EventEmitter {
                 "-f",
                 "s16le",
                 "-ar",
-                "48000",
+                String(SAMPLE_RATE),
                 "-ac",
-                "2",
+                String(CHANNELS),
             ];
             let ffmpeg: prism.FFmpeg;
             try {
@@ -93,19 +95,18 @@ export class AudioPlayer extends EventEmitter {
         }
 
         this.volumeTransformer = new prism.VolumeTransformer({ type: "s16le", volume });
-        this.encoder = new prism.opus.Encoder({ rate: 48000, channels: 2, frameSize: SAMPLES_PER_FRAME });
+        this.volumeTransformer.on("error", err => this.emit("error", err));
 
-        pcmSource.pipe(this.volumeTransformer).pipe(this.encoder);
+        pcmSource.pipe(this.volumeTransformer);
 
-        this.encoder.on("data", (chunk: Buffer) => {
-            this.frameQueue.push(chunk);
-            if (this.frameQueue.length >= MAX_QUEUED_FRAMES) this.encoder?.pause();
+        this.pcmRemainder = Buffer.alloc(0);
+        this.volumeTransformer.on("data", (chunk: Buffer) => {
+            this.pushPcm(chunk);
+            if (this.frameQueue.length >= MAX_QUEUED_FRAMES) this.volumeTransformer?.pause();
         });
-        this.encoder.on("end", () => {
+        this.volumeTransformer.on("end", () => {
             this.streamEnded = true;
         });
-        this.encoder.on("error", err => this.emit("error", err));
-        this.volumeTransformer.on("error", err => this.emit("error", err));
 
         this.playing = true;
         this.paused = false;
@@ -139,7 +140,7 @@ export class AudioPlayer extends EventEmitter {
         this.volumeTransformer?.setVolume(volume);
     }
 
-    /** Stops playback and releases the decode/encode pipeline. Safe to call when nothing is playing. */
+    /** Stops playback and releases the decode pipeline. Safe to call when nothing is playing. */
     stop(): void {
         const wasPlaying = this.playing;
         this.playing = false;
@@ -150,17 +151,31 @@ export class AudioPlayer extends EventEmitter {
             this.timer = null;
         }
         this.frameQueue.length = 0;
+        this.pcmRemainder = Buffer.alloc(0);
         this.streamEnded = false;
 
         this.ffmpeg?.process?.kill("SIGKILL");
         this.ffmpeg = null;
-        this.encoder?.removeAllListeners();
-        this.encoder?.destroy();
-        this.encoder = null;
+        this.volumeTransformer?.removeAllListeners();
         this.volumeTransformer?.destroy();
         this.volumeTransformer = null;
 
         if (wasPlaying) this.emit("finish");
+    }
+
+    /** Slices incoming PCM into fixed 20ms frames, carrying over any partial tail to the next chunk. */
+    private pushPcm(chunk: Buffer): void {
+        let buf = this.pcmRemainder.length > 0 ? Buffer.concat([this.pcmRemainder, chunk]) : chunk;
+        while (buf.length >= FRAME_BYTES) {
+            const frameBytes = buf.subarray(0, FRAME_BYTES);
+            const samples = new Int16Array(SAMPLES_PER_FRAME * CHANNELS);
+            for (let i = 0; i < samples.length; i++) {
+                samples[i] = frameBytes.readInt16LE(i * BYTES_PER_SAMPLE);
+            }
+            this.frameQueue.push(samples);
+            buf = buf.subarray(FRAME_BYTES);
+        }
+        this.pcmRemainder = Buffer.from(buf);
     }
 
     private scheduleTick(): void {
@@ -173,10 +188,10 @@ export class AudioPlayer extends EventEmitter {
     private tick(): void {
         if (!this.playing || this.paused) return;
 
-        const frame = this.frameQueue.shift();
-        if (this.encoder?.isPaused() && this.frameQueue.length <= RESUME_QUEUED_FRAMES) this.encoder.resume();
+        const samples = this.frameQueue.shift();
+        if (this.volumeTransformer?.isPaused() && this.frameQueue.length <= RESUME_QUEUED_FRAMES) this.volumeTransformer.resume();
 
-        if (!frame) {
+        if (!samples) {
             if (this.streamEnded) {
                 this.stop();
                 return;
@@ -188,11 +203,11 @@ export class AudioPlayer extends EventEmitter {
             return;
         }
 
-        for (const peer of this.getPeers()) {
-            peer.writeAudioFrame(frame, this.sequenceNumber, this.timestamp);
+        const audioSource = this.getAudioSource();
+        if (audioSource) {
+            const frame = new AudioFrame(samples, SAMPLE_RATE, CHANNELS, SAMPLES_PER_FRAME);
+            audioSource.captureFrame(frame).catch(err => this.emit("error", err));
         }
-        this.sequenceNumber = nextUint16(this.sequenceNumber);
-        this.timestamp = addUint32(this.timestamp, SAMPLES_PER_FRAME);
 
         this.frameIndex++;
         this.scheduleTick();

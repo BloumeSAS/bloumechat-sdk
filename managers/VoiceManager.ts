@@ -2,9 +2,7 @@ import type { BloumeChat } from "../bloumechat";
 import { BloumeChatAuthError } from "../errors/BloumeChatAuthError";
 import type { Channel } from "../structures/Channel";
 import { VoiceConnection } from "../voice/VoiceConnection";
-import type { IceServerData, VoiceJoinOptions } from "../voice/types";
-
-const FALLBACK_ICE_SERVERS: IceServerData[] = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }];
+import type { VoiceJoinOptions } from "../voice/types";
 
 /**
  * Owns the bot's voice connection. A bot's underlying socket session can only
@@ -34,12 +32,10 @@ export class VoiceManager {
             this.leave();
         }
 
-        const iceServers = await this.fetchIceServers();
         const connection = new VoiceConnection({
             socket,
             channelId: channel.id,
             selfUserPublicId: this.client.user.id,
-            iceServers,
         });
         connection.once("destroyed", () => {
             if (this.current === connection) this.current = null;
@@ -59,14 +55,5 @@ export class VoiceManager {
     leave(): void {
         this.current?.destroy();
         this.current = null;
-    }
-
-    private async fetchIceServers(): Promise<IceServerData[]> {
-        try {
-            const data = await this.client.apiCall("/voice/ice-servers");
-            return Array.isArray(data?.iceServers) && data.iceServers.length > 0 ? data.iceServers : FALLBACK_ICE_SERVERS;
-        } catch {
-            return FALLBACK_ICE_SERVERS;
-        }
     }
 }

@@ -1,11 +1,24 @@
 import { EventEmitter } from "events";
 import type { Socket } from "socket.io-client";
+import {
+    Room,
+    RoomEvent,
+    LocalAudioTrack,
+    AudioSource,
+    AudioStream,
+    TrackSource,
+    TrackKind,
+    TrackPublishOptions,
+    type RoomOptions,
+    type RemoteTrack,
+    type RemoteTrackPublication,
+    type RemoteParticipant,
+} from "@livekit/rtc-node";
 import { BloumeChatVoiceError } from "../errors/BloumeChatVoiceError";
 import { AudioPlayer } from "./AudioPlayer";
-import { VoicePeerConnection } from "./VoicePeerConnection";
 import type {
     AudioResource,
-    IceServerData,
+    LiveKitTokenData,
     PlayOptions,
     VoiceConnectionState,
     VoiceJoinOptions,
@@ -14,23 +27,27 @@ import type {
     VoiceUserJoinedData,
     VoiceUserLeftData,
     VoiceUserStateData,
-    WebRTCSignalReceived,
 } from "./types";
 
 export interface VoiceConnectionOptions {
     socket: Socket;
     channelId: string;
     selfUserPublicId: string;
-    iceServers: IceServerData[];
 }
+
+/** 48kHz stereo — matches BloumeChat's browser client and every WebRTC participant. */
+const SAMPLE_RATE = 48000;
+const CHANNELS = 2;
 
 /**
  * A live connection to one voice channel. Returned by {@link Channel.join}.
  *
- * Owns one {@link VoicePeerConnection} per other participant (BloumeChat voice
- * is a peer-to-peer mesh, not an SFU — see `server-nest/src/voice/`) and one
- * shared {@link AudioPlayer} whose output frames are fanned out to all of them,
- * so joining a busy channel opens one real WebRTC connection per participant.
+ * Connects to BloumeChat's self-hosted LiveKit SFU via `@livekit/rtc-node` —
+ * the same media transport the browser client uses (`livekit-client`), not a
+ * peer-to-peer mesh. The bot publishes one shared audio track for its speech
+ * (fanned out to every participant by the SFU, not one connection per
+ * participant) and can subscribe to every other participant's audio for
+ * incoming-audio use cases (e.g. speech-to-text).
  */
 export class VoiceConnection extends EventEmitter {
     public readonly channelId: string;
@@ -38,10 +55,12 @@ export class VoiceConnection extends EventEmitter {
 
     private readonly socket: Socket;
     private readonly selfUserPublicId: string;
-    private readonly iceServers: IceServerData[];
-    private readonly peers = new Map<string, VoicePeerConnection>();
     private readonly users = new Map<string, VoiceUser>();
     private readonly player: AudioPlayer;
+    private room: Room | null = null;
+    private audioSource: AudioSource | null = null;
+    private localTrack: LocalAudioTrack | null = null;
+    private readonly audioStreams = new Map<string, AudioStream>();
     private destroyed = false;
 
     constructor(options: VoiceConnectionOptions) {
@@ -49,13 +68,9 @@ export class VoiceConnection extends EventEmitter {
         this.socket = options.socket;
         this.channelId = options.channelId;
         this.selfUserPublicId = options.selfUserPublicId;
-        this.iceServers = options.iceServers;
 
-        this.player = new AudioPlayer(() => this.peers.values());
+        this.player = new AudioPlayer(() => this.audioSource);
         this.player.on("error", err => this.emit("error", err));
-        // A single persistent listener (not one per play() call) — play() can
-        // interrupt an in-flight track, which itself emits "finish" for the
-        // interrupted track, so a once()-per-call listener would fire early.
         this.player.on("start", () => {
             this.setState({ speaking: true });
             this.emit("playerStart");
@@ -70,50 +85,73 @@ export class VoiceConnection extends EventEmitter {
 
     // ─── Lifecycle ───────────────────────────────────────────────────────
 
-    /** Resolves once the server confirms the join and every already-present participant has a peer connection under negotiation. */
+    /** Resolves once the LiveKit room connection is established and the local audio track is published. */
     async connect(options: VoiceJoinOptions = {}): Promise<void> {
         const timeoutMs = options.timeoutMs ?? 15_000;
 
-        await new Promise<void>((resolve, reject) => {
+        const tokenData = await new Promise<LiveKitTokenData>((resolve, reject) => {
             const timeout = setTimeout(() => {
-                this.socket.off("voice:user-joined", onJoined);
+                this.socket.off("voice:livekit-token", onToken);
                 reject(new BloumeChatVoiceError(`Timed out joining voice channel ${this.channelId} after ${timeoutMs}ms.`));
             }, timeoutMs);
 
-            const onJoined = (data: VoiceUserJoinedData) => {
-                if (data.channelPublicId !== this.channelId || data.user.userPublicId !== this.selfUserPublicId) return;
+            const onToken = (data: LiveKitTokenData) => {
+                if (data.channelPublicId !== this.channelId) return;
                 clearTimeout(timeout);
-                this.socket.off("voice:user-joined", onJoined);
-
-                for (const user of data.users) {
-                    this.users.set(user.userPublicId, user);
-                    // We're the newcomer here — we proactively open a connection to
-                    // every user already in the room (they'll answer, not offer).
-                    if (user.userPublicId !== this.selfUserPublicId) this.ensurePeer(user.userPublicId, false);
-                }
-                this.state = "ready";
-                this.emit("ready");
-                resolve();
+                this.socket.off("voice:livekit-token", onToken);
+                resolve(data);
             };
 
-            this.socket.on("voice:user-joined", onJoined);
+            this.socket.on("voice:livekit-token", onToken);
             this.socket.emit("voice:join", { channelPublicId: this.channelId });
         });
+
+        const room = new Room();
+        this.room = room;
+
+        room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, _publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+            if (track.kind !== TrackKind.KIND_AUDIO) return;
+            const stream = new AudioStream(track, SAMPLE_RATE, CHANNELS);
+            this.audioStreams.set(participant.identity, stream);
+            void this.pumpAudioStream(participant.identity, stream);
+        });
+
+        room.on(RoomEvent.TrackUnsubscribed, (_track: RemoteTrack, _publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+            this.audioStreams.delete(participant.identity);
+        });
+
+        const connectOptions: RoomOptions = {
+            autoSubscribe: true,
+            dynacast: true,
+            ...(tokenData.e2eeKey ? { encryption: { keyProviderOptions: { sharedKey: base64ToBytes(tokenData.e2eeKey) } } } : {}),
+        };
+
+        await room.connect(tokenData.url, tokenData.token, connectOptions);
+
+        this.audioSource = new AudioSource(SAMPLE_RATE, CHANNELS);
+        this.localTrack = LocalAudioTrack.createAudioTrack("bot-audio", this.audioSource);
+        await room.localParticipant?.publishTrack(this.localTrack, new TrackPublishOptions({ source: TrackSource.SOURCE_MICROPHONE }));
+
+        this.state = "ready";
+        this.emit("ready");
 
         if (options.selfMute || options.selfDeaf) {
             this.setState({ muted: options.selfMute, deafened: options.selfDeaf });
         }
     }
 
-    /** Leaves the channel and tears down every peer connection. Safe to call more than once. */
+    /** Leaves the channel and disconnects from LiveKit. Safe to call more than once. */
     destroy(): void {
         if (this.destroyed) return;
         this.destroyed = true;
         this.state = "destroyed";
 
         this.player.stop();
-        for (const peer of this.peers.values()) peer.close();
-        this.peers.clear();
+        this.audioStreams.clear();
+        void this.room?.disconnect();
+        this.room = null;
+        this.audioSource = null;
+        this.localTrack = null;
         this.users.clear();
         this.detachSocketListeners();
 
@@ -124,13 +162,14 @@ export class VoiceConnection extends EventEmitter {
 
     // ─── Participants ────────────────────────────────────────────────────
 
-    /** Currently known participants (including this bot). */
+    /** Currently known participants (including this bot) — presence/badge state from the socket layer, independent of LiveKit. */
     get participants(): VoiceUser[] {
         return [...this.users.values()];
     }
 
     // ─── State ───────────────────────────────────────────────────────────
 
+    /** Presence state (mute/deafen/speaking/camera/stream badges) — unrelated to the LiveKit media transport, always goes through the socket. */
     setState(state: VoiceStateUpdate): void {
         this.socket.emit("voice:state", state);
     }
@@ -145,7 +184,7 @@ export class VoiceConnection extends EventEmitter {
 
     // ─── Playback ────────────────────────────────────────────────────────
 
-    /** Plays a file path, URL, or raw PCM stream — decoded via FFmpeg (unless `inputType: "raw"`) and broadcast to every connected peer. */
+    /** Plays a file path, URL, or raw PCM stream — decoded to PCM via FFmpeg (unless `inputType: "raw"`) and published as this bot's LiveKit audio track. */
     play(resource: AudioResource, options?: PlayOptions): void {
         this.player.play(resource, options);
     }
@@ -176,52 +215,30 @@ export class VoiceConnection extends EventEmitter {
 
     // ─── Internals ───────────────────────────────────────────────────────
 
-    private ensurePeer(userPublicId: string, suppressInitialNegotiation: boolean): VoicePeerConnection {
-        const existing = this.peers.get(userPublicId);
-        if (existing) return existing;
-
-        // Both sides must compute politeness the same deterministic way (a
-        // total order on publicId) or they could both end up polite/impolite.
-        const polite = this.selfUserPublicId.localeCompare(userPublicId) > 0;
-        const peer = new VoicePeerConnection({
-            remoteUserPublicId: userPublicId,
-            polite,
-            iceServers: this.iceServers,
-            suppressInitialNegotiation,
-            onSignal: (type, signal) => {
-                this.socket.emit("voice:signal", { targetUserPublicId: userPublicId, signal, type });
-            },
-        });
-        peer.on("error", err => this.emit("error", err));
-        peer.on("audioPacket", (payload: Buffer) => this.emit("audioPacket", userPublicId, payload));
-        this.peers.set(userPublicId, peer);
-        return peer;
-    }
-
-    private closePeer(userPublicId: string): void {
-        const peer = this.peers.get(userPublicId);
-        if (!peer) return;
-        peer.close();
-        this.peers.delete(userPublicId);
+    /** Emits decoded PCM frames from a remote participant's audio as `"audioFrame"` — e.g. for speech-to-text. Runs until the stream closes (participant leaves / track unsubscribed). */
+    private async pumpAudioStream(userPublicId: string, stream: AudioStream): Promise<void> {
+        try {
+            for await (const frame of stream) {
+                if (this.destroyed) return;
+                this.emit("audioFrame", userPublicId, frame.data, frame.sampleRate, frame.channels);
+            }
+        } catch (err) {
+            if (!this.destroyed) this.emit("error", err);
+        }
     }
 
     private attachSocketListeners(): void {
         this.socket.on("voice:user-joined", this.handleUserJoined);
         this.socket.on("voice:user-left", this.handleUserLeft);
         this.socket.on("voice:user-state", this.handleUserState);
-        this.socket.on("voice:signal", this.handleSignal);
     }
 
     private detachSocketListeners(): void {
         this.socket.off("voice:user-joined", this.handleUserJoined);
         this.socket.off("voice:user-left", this.handleUserLeft);
         this.socket.off("voice:user-state", this.handleUserState);
-        this.socket.off("voice:signal", this.handleSignal);
     }
 
-    // Someone else joined after we did — the newcomer initiates by sending us
-    // an offer, which we pick up reactively in handleSignal below (matches
-    // the browser client: only the newcomer proactively opens connections).
     private handleUserJoined = (data: VoiceUserJoinedData): void => {
         if (data.channelPublicId !== this.channelId) return;
         this.users.set(data.user.userPublicId, data.user);
@@ -235,7 +252,6 @@ export class VoiceConnection extends EventEmitter {
             return;
         }
         this.users.delete(data.userPublicId);
-        this.closePeer(data.userPublicId);
         this.emit("userLeft", data.userPublicId);
     };
 
@@ -245,9 +261,8 @@ export class VoiceConnection extends EventEmitter {
         if (existing) Object.assign(existing, data);
         this.emit("userStateUpdate", data);
     };
+}
 
-    private handleSignal = (data: WebRTCSignalReceived): void => {
-        const peer = this.ensurePeer(data.fromUserPublicId, data.type === "offer");
-        void peer.handleSignal(data.type, data.signal);
-    };
+function base64ToBytes(base64: string): Uint8Array {
+    return Uint8Array.from(Buffer.from(base64, "base64"));
 }

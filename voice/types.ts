@@ -78,29 +78,22 @@ export interface VoiceCallCancelledData {
 }
 
 /**
- * Opaque WebRTC signaling payload relayed 1:1 between peers via `voice:signal`.
- * The server never inspects it, only relays it — `signal` is an
- * `RTCSessionDescriptionInit` (for "offer"/"answer") or an `RTCIceCandidateInit`
- * (for "ice-candidate"), matching what the browser client sends.
+ * Payload of `voice:livekit-token` — emitted once to the joining socket only
+ * (never broadcast) right after a successful `voice:join`. This is the LiveKit
+ * SFU access token; the SDK no longer does its own WebRTC signaling/mesh (see
+ * `Projects/bloumechat/webapp/features/livekit-sfu-migration.md` in the
+ * Obsidian vault for why) — it connects to this URL/token pair with
+ * `@livekit/rtc-node` exactly like the browser client does with `livekit-client`.
  */
-export interface WebRTCSignalData {
-    targetUserPublicId: string;
-    signal: unknown;
-    type: "offer" | "answer" | "ice-candidate";
-}
-
-/** Payload received on `voice:signal` (server adds `fromUserPublicId`). */
-export interface WebRTCSignalReceived {
-    fromUserPublicId: string;
-    signal: unknown;
-    type: "offer" | "answer" | "ice-candidate";
-}
-
-/** A single ICE server entry, as returned by `GET /voice/ice-servers`. */
-export interface IceServerData {
-    urls: string | string[];
-    username?: string;
-    credential?: string;
+export interface LiveKitTokenData {
+    channelPublicId: string;
+    token: string;
+    url: string;
+    /** Base64 of a per-channel HMAC key for LiveKit's frame-level E2EE, or null
+     * if the server has no VOICE_E2EE_SECRET configured. See
+     * `server-nest/src/voice/e2ee-key.util.ts` for what this does and doesn't
+     * protect against. */
+    e2eeKey: string | null;
 }
 
 /** Options accepted by {@link Channel.join}. */
@@ -123,7 +116,7 @@ export interface PlayOptions {
      * - `"raw"`: `resource` is already signed 16-bit little-endian PCM, 48kHz stereo — skips FFmpeg entirely.
      */
     inputType?: "auto" | "raw";
-    /** Linear volume multiplier applied before Opus encoding (1 = unchanged, 0 = silent). Default 1. */
+    /** Linear volume multiplier applied to the decoded PCM before it's handed to LiveKit (1 = unchanged, 0 = silent). Default 1. */
     volume?: number;
     /** Extra arguments spliced into the FFmpeg invocation right after `-i <input>`. Advanced use only. */
     ffmpegArgs?: string[];
