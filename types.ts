@@ -43,21 +43,6 @@ export interface ActivityUpdateData {
     activity: (ActivityData & { startedAt: number }) | null;
 }
 
-export interface ProfileUpdateData {
-    /** New username */
-    name?: string;
-    /** Short bio (null to clear) */
-    bio?: string | null;
-    /** Custom tag/discriminator (null to reset to default) */
-    tag?: string | null;
-    /** Avatar URL (null to reset to default) */
-    image?: string | null;
-    /** Banner image URL (null to clear) */
-    banner?: string | null;
-    /** Banner solid color in hex (null to clear) */
-    bannerColor?: string | null;
-}
-
 /**
  * Every event the client can emit, keyed by name, with the exact argument
  * tuple each listener receives. Consumers get full autocomplete + type

@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-08-01
+
+### Breaking
+
+- **Removed bot profile-editing methods** — `client.updateProfile()`, `setAvatar()`, `setBanner()`, `setBio()`, and the `ProfileUpdateData` type no longer exist. A bot must never change its own username, bio, avatar, banner, or tag — that's reserved for a human via the BloumeChat app itself (Settings → My Account), even when triggered by the bot's own owner. Same principle as the existing no-`block()`/`follow()` rule, now extended to identity edits.
+
 ## [3.0.0] - 2026-07-27
 
 ### Breaking

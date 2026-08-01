@@ -13,9 +13,9 @@ import { EmbedBuilder, EmbedPayload } from "./structures/EmbedBuilder";
 import { RestManager, type ApiCallOptions } from "./rest/RestManager";
 import { GatewayManager } from "./gateway/GatewayManager";
 import { BloumeChatAuthError } from "./errors/BloumeChatAuthError";
-import type { ActivityData, PresenceData, ProfileUpdateData, ClientEvents } from "./types";
+import type { ActivityData, PresenceData, ClientEvents } from "./types";
 
-export type { ActivityData, PresenceData, ActivityUpdateData, ProfileUpdateData, ClientEvents } from "./types";
+export type { ActivityData, PresenceData, ActivityUpdateData, ClientEvents } from "./types";
 export type { ApiCallOptions } from "./rest/RestManager";
 
 const ALLOWED_HOSTS = new Set(["bloumechat.com", "api.bloumechat.com", "localhost"]);
@@ -344,35 +344,6 @@ export class BloumeChat extends EventEmitter {
         if (!this.socket) throw new BloumeChatAuthError("setPresence() requires an active connection — call login() first.");
         if (data.status) await this.setStatus(data.status);
         if (data.activity !== undefined) await this.setActivity(data.activity);
-    }
-
-    // ─── Profile ─────────────────────────────────────────────────────────────
-
-    /**
-     * Updates the bot's profile (username, bio, tag, avatar, banner…).
-     */
-    async updateProfile(data: ProfileUpdateData): Promise<void> {
-        await this.apiCall("/users/settings", { method: "PATCH", body: JSON.stringify(data) });
-        if (this.user) {
-            if (data.name) this.user.username = data.name;
-            if (data.tag !== undefined) this.user.tag = data.tag ?? this.user.tag;
-            if (data.image !== undefined) this.user.avatar = data.image;
-        }
-    }
-
-    /** Shortcut: change the bot's avatar URL. */
-    async setAvatar(imageUrl: string | null): Promise<void> {
-        return this.updateProfile({ image: imageUrl });
-    }
-
-    /** Shortcut: change the bot's banner image URL. */
-    async setBanner(banner: string | null): Promise<void> {
-        return this.updateProfile({ banner });
-    }
-
-    /** Shortcut: change the bot's bio. */
-    async setBio(bio: string | null): Promise<void> {
-        return this.updateProfile({ bio });
     }
 
     // ─── Direct Messages ─────────────────────────────────────────────────────
