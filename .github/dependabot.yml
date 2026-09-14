@@ -10,6 +10,23 @@ updates:
         dependency-type: "development"
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      # typescript-eslint@8.70.0 (latest, checked 2026-09-14) still caps its
+      # typescript peer dep at "<6.1.0" — no released version supports
+      # TypeScript 7.x yet. Grouping this major bump with the others makes
+      # `npm ci` fail on an unresolvable peer dependency. Re-allow once
+      # typescript-eslint ships TS 7 support.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # vitest 5 / @vitest/coverage-v8 5 require Node "^22.12.0 || ^24.0.0 ||
+      # >=26.0.0" — this package supports Node >=20 (see engines in
+      # package.json and the ci.yml test matrix), so pulling in vitest 5
+      # would silently break the Node 20.x CI job. Re-allow if Node 20
+      # support is ever dropped.
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitest/coverage-v8"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
