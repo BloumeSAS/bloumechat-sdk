@@ -9,6 +9,7 @@ import { GuildManager } from "./managers/GuildManager";
 import { ChannelManager } from "./managers/ChannelManager";
 import { MemberManager } from "./managers/MemberManager";
 import { VoiceManager } from "./managers/VoiceManager";
+import { VoiceStateManager } from "./managers/VoiceStateManager";
 import { EmbedBuilder, EmbedPayload } from "./structures/EmbedBuilder";
 import { RestManager, type ApiCallOptions } from "./rest/RestManager";
 import { GatewayManager } from "./gateway/GatewayManager";
@@ -44,6 +45,8 @@ export class BloumeChat extends EventEmitter {
     public members: MemberManager;
     /** Manages the bot's voice connection (join a channel, play audio) */
     public voice: VoiceManager;
+    /** Cache of every known user's current voice channel, built from `voice:*` gateway events. Prefer `member.voice`. */
+    public voiceStates: VoiceStateManager;
 
     /** Date the client first became ready (null before login) */
     public readyAt: Date | null = null;
@@ -70,6 +73,7 @@ export class BloumeChat extends EventEmitter {
         this.channels = new ChannelManager(this);
         this.members = new MemberManager(this);
         this.voice = new VoiceManager(this);
+        this.voiceStates = new VoiceStateManager(this);
         this.rest = new RestManager(this.baseUrl, () => this._token);
         this.gateway = new GatewayManager(this);
         this._defineHiddenToken();
@@ -136,7 +140,7 @@ export class BloumeChat extends EventEmitter {
      * which defeats the point of a "safe to log" representation.
      */
     private _toSafeSnapshot(): Record<string, unknown> {
-        const { users, guilds, channels, members, voice, socket, user, rest, gateway, ...rest2 } = this as any;
+        const { users, guilds, channels, members, voice, voiceStates, socket, user, rest, gateway, ...rest2 } = this as any;
         void rest;
         void gateway;
         return {
@@ -148,6 +152,7 @@ export class BloumeChat extends EventEmitter {
             channels: `[ChannelManager cache=${channels.cache.size}]`,
             members: `[MemberManager cache=${members.cache.size}]`,
             voice: `[VoiceManager connection=${voice.connection ? voice.connection.channelId : "none"}]`,
+            voiceStates: `[VoiceStateManager cache=${voiceStates.cache.size}]`,
             socket: socket ? "[Socket]" : null,
         };
     }

@@ -123,13 +123,24 @@ export class VoiceConnection extends EventEmitter {
             }
         );
 
-        const connectOptions: RoomOptions = {
-            autoSubscribe: true,
-            dynacast: true,
-            ...(tokenData.e2eeKey ? { encryption: { keyProviderOptions: { sharedKey: base64ToBytes(tokenData.e2eeKey) } } } : {}),
-        };
+        const baseOptions: RoomOptions = { autoSubscribe: true, dynacast: true };
+        const encryptedOptions: RoomOptions | null = tokenData.e2eeKey
+            ? { ...baseOptions, encryption: { keyProviderOptions: { sharedKey: base64ToBytes(tokenData.e2eeKey) } } }
+            : null;
 
-        await room.connect(tokenData.url, tokenData.token, connectOptions);
+        try {
+            await room.connect(tokenData.url, tokenData.token, encryptedOptions ?? baseOptions);
+        } catch (err) {
+            // The browser client (voice-manager.tsx) treats a failed E2EE setup as
+            // non-fatal and falls back to an unencrypted connection rather than
+            // never joining at all — mirror that here. Without this fallback, any
+            // native-binding issue with `@livekit/rtc-node`'s `encryption` option
+            // (version skew, a malformed key, ...) takes down voice entirely for
+            // every bot on a server with VOICE_E2EE_SECRET configured, since there
+            // is no way for a bot author to opt out of E2EE from the outside.
+            if (!encryptedOptions) throw err;
+            await room.connect(tokenData.url, tokenData.token, baseOptions);
+        }
 
         this.audioSource = new AudioSource(SAMPLE_RATE, CHANNELS);
         this.localTrack = LocalAudioTrack.createAudioTrack("bot-audio", this.audioSource);
