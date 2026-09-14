@@ -169,13 +169,24 @@ export class GatewayManager {
         // Note: `voice:signal` (raw WebRTC offer/answer/ICE relay) is deliberately
         // NOT forwarded here — it's wire protocol consumed directly by an active
         // VoiceConnection (see voice/VoiceConnection.ts), not a bot-facing event.
-        socket.on("voice:state-update", data => client.emit("voiceStateUpdate", data));
-        socket.on("voice:user-joined", data => client.emit("voiceUserJoined", data));
+        socket.on("voice:state-update", data => {
+            client.voiceStates._applySnapshot(data.channelPublicId, data.users || []);
+            client.emit("voiceStateUpdate", data);
+        });
+        socket.on("voice:user-joined", data => {
+            client.voiceStates._applySnapshot(data.channelPublicId, data.users || []);
+            client.emit("voiceUserJoined", data);
+        });
         socket.on("voice:user-left", data => {
+            client.voiceStates._applySnapshot(data.channelPublicId, data.users || []);
+            client.voiceStates._remove(data.userPublicId);
             client.emit("voiceStateUpdate", data);
             client.emit("voiceUserLeft", data);
         });
-        socket.on("voice:user-state", data => client.emit("voiceUserState", data));
+        socket.on("voice:user-state", data => {
+            client.voiceStates._patch(data.userPublicId, data);
+            client.emit("voiceUserState", data);
+        });
         socket.on("voice:incoming-call", data => client.emit("voiceIncomingCall", data));
         socket.on("voice:call-cancelled", data => client.emit("voiceCallCancelled", data));
 

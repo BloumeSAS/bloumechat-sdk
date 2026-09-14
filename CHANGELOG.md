@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-09-14
+
+### Added
+
+- **`client.voiceStates`** (`VoiceStateManager`) — a cache of every known user's current voice channel, built from the `voice:*` gateway events. Previously a bot had no way to answer "which voice channel is this member in?" (`member.voice` didn't exist) and had to hand-roll a `Map` from raw `voiceUserJoined`/`voiceUserLeft`/`voiceStateUpdate` events, exactly as seen in a third-party music bot's `voiceTracker.js`. Use `member.voice` (new getter, returns a `VoiceState | undefined`) instead.
+
+### Fixed
+
+- **Voice connect no longer hard-fails when frame-level E2EE setup breaks** — `VoiceConnection.connect()` now falls back to an unencrypted `room.connect()` if connecting with the server's E2EE key throws, instead of leaving the bot unable to join voice at all. This mirrors the fallback the browser client (`voice-manager.tsx`) already had; the bot SDK had none, so any issue with `@livekit/rtc-node`'s `encryption` room option (version skew, a malformed key, ...) on a server with `VOICE_E2EE_SECRET` configured — i.e. production — took down voice entirely for every bot, with no way for a bot author to opt out from outside the SDK.
+
 ## [4.0.0] - 2026-08-01
 
 ### Breaking

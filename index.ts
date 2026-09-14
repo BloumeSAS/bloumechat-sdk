@@ -29,6 +29,7 @@ export * from "./managers/InviteManager";
 export * from "./managers/EmojiManager";
 export * from "./managers/WebhookManager";
 export * from "./managers/VoiceManager";
+export * from "./managers/VoiceStateManager";
 
 // Voice
 export * from "./voice";

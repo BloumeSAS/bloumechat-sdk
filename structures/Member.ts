@@ -3,6 +3,7 @@ import { BloumeChat } from "../bloumechat";
 import { User } from "./User";
 import { PermissionFlags, ALL_PERMISSIONS } from "../util/Permissions";
 import type { MemberRoleRef } from "./dto";
+import type { VoiceState } from "../voice/types";
 
 export type { MemberRoleRef } from "./dto";
 
@@ -62,6 +63,14 @@ export class Member extends Base {
      */
     hasPermission(permission: bigint): boolean {
         return (this.permissions & permission) === permission;
+    }
+
+    /**
+     * This member's current voice channel state, or `undefined` if they're
+     * not known to be in a voice channel (backed by `client.voiceStates`).
+     */
+    get voice(): VoiceState | undefined {
+        return this.client.voiceStates.cache.get(this.user.id);
     }
 
     /**

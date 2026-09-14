@@ -39,6 +39,16 @@ export interface VoiceStateUpdate {
     screenTrackId?: string | null;
 }
 
+/**
+ * A user's cached voice state, as tracked by {@link VoiceStateManager} from
+ * the `voice:*` gateway events. Unlike {@link VoiceUser}, this also carries
+ * the channel the user is in, since a bot otherwise has no way to answer
+ * "which voice channel is this member currently in?".
+ */
+export interface VoiceState extends VoiceUser {
+    channelId: string;
+}
+
 /** Payload of `voice:user-joined`. */
 export interface VoiceUserJoinedData {
     channelPublicId: string;
