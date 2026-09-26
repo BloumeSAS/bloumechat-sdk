@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-09-26
+
+### Fixed
+
+- **`Member.kick()` / `Member.ban()` always failed — they called a REST endpoint that never existed.** Kicking and banning a member (like the "Kick"/"Ban" buttons in the web app) only ever shipped as the `server:kick`/`server:ban` Socket.IO events — there is no `DELETE`/`PUT` route for it under `/servers/:id/members`/`/bans`. Both methods now emit the same Socket.IO events the web app uses, over an ack-based helper (`emitWithAck`) that resolves/rejects based on the server's response instead of firing REST calls into the void.
+- **`Member.edit()` (and therefore `setNickname()`/`addRole()`/`removeRole()`) targeted the wrong ID.** It PATCHed `/servers/:serverId/members/:id` using the membership's own public ID, but that route expects the underlying **user's** public ID — every call 404'd with `common.api.user_not_found` unless the two IDs happened to coincide. Now uses `member.user.id`.
+- **`Guild.unbanMember()` silently swallowed failures.** It fired `server:unban` without ever reading the ack, so a denied unban (missing permission, unknown user, ...) looked identical to a successful one from the caller's side. Now awaits the ack via `emitWithAck` and rejects with `BloumeChatGatewayError` on failure.
+- **`messageReactionAdd` was a raw, undecoded passthrough of the server's full reaction-list snapshot** (`{ messagePublicId, reactions: [...] }`) on every single toggle — add or remove, from anyone. There was no way to tell what changed, who did it, or whether it was an add or a remove without hand-rolling your own diffing. A new internal `ReactionDiffTracker` now compares each snapshot against the last one seen per message and emits proper per-user events instead (see Added).
+
+### Added
+
+- **`messageReactionAdd(reaction, user, messagePublicId)` / `messageReactionRemove(reaction, user, messagePublicId)`** — replace the old single raw `messageReactionAdd(data: any)`. `reaction` is `{ emoji, messagePublicId, count }` (`count` reflects the emoji's total after this change). The very first snapshot ever seen for a message (nothing cached yet) is reported as a batch of adds — there's no way to distinguish "brand new" from "already there" without a history fetch, which the SDK doesn't do for reactions.
+- **`Message.createReactionCollector(options?)`** — returns a `ReactionCollector` (`EventEmitter`) that fires `collect(reaction, user)` for every matching reaction until `options.time`/`options.max` is hit or `.stop()` is called, with an optional `options.filter`. For long-lived collection (polls, reaction-role menus); `awaitReactions()` (single resolution) is unchanged in behavior, just adapted internally to the new event shape.
+- **`Member.hasRole(roleIdOrName)`** — checks by role ID or (case-insensitive) name, the latter via the guild's role cache.
+- **`Member.isOwner`** (getter) and **`Guild.fetchOwner()`** — check/fetch the server owner without manually comparing `guild.ownerId` yourself.
+- **`User.send(content)` / `Member.send(content)`** — shorthand for `createDM()` followed by sending on the resulting channel, accepting the same `string | EmbedBuilder | { content?, embeds?, replyToId? }` union as `Channel.send()`.
+- **`GuildManager.getOrFetch(id)` / `MemberManager.getOrFetch(serverId, memberId)` / `RoleManager.getOrFetch(roleId)`** — cache-or-fetch helpers that return `undefined` instead of throwing when the fetch fails, for callers who'd rather not wrap every lookup in try/catch.
+- **`client.loadCommands(directoryPath)`** — loads every command module (`.js`/`.cjs`/`.mjs`/`.ts`, default or named `command` export with a `name` + `execute`) in a directory into `client.commands`, replacing the `fs.readdirSync` + `Map` boilerplate every bot was hand-rolling. Dispatching on `messageCreate` (prefix parsing, cooldowns, permission checks) is left to the bot — the SDK only loads and stores.
+- **`BloumeChatGatewayError`** — new error class for the ack-based Socket.IO actions above (`kick`/`ban`/`unban`). `.event` is the Socket.IO event name, `.code` is the raw error from the server (a dotted i18n key, e.g. `"servers.errors.cannot_kick_owner"` — this gateway channel is shared with the web app, which resolves that key itself) or `"TIMEOUT"` if no ack arrived within 10s.
+
+### Changed
+
+- **`Member.ban()`'s `options.deleteMessageDays: number` renamed to `options.deleteHistory: "none" | "1d" | "7d" | "14d" | "30d"`** to match what the server actually accepts — the old numeric option never corresponded to a real server parameter (ban() didn't work at all before this release, so there's no prior working behavior this changes).
+
 ## [4.1.0] - 2026-09-14
 
 ### Added
