@@ -2,6 +2,10 @@ import { Base } from "./Base";
 import { BloumeChat } from "../bloumechat";
 import { User } from "./User";
 import { PermissionFlags, ALL_PERMISSIONS } from "../util/Permissions";
+import { BloumeChatAuthError } from "../errors/BloumeChatAuthError";
+import { emitWithAck } from "../gateway/emitWithAck";
+import type { Message } from "./Message";
+import type { EmbedBuilder, EmbedPayload } from "./EmbedBuilder";
 import type { MemberRoleRef } from "./dto";
 import type { VoiceState } from "../voice/types";
 
@@ -74,22 +78,33 @@ export class Member extends Base {
     }
 
     /**
-     * Kicks the member from the server.
+     * Kicks the member from the server. There is no REST endpoint for this —
+     * kicking (like the human "Kick" button) happens over the same
+     * `server:kick` Socket.IO event the web app uses, requiring an active
+     * connection (`login()`).
+     *
+     * `reason` isn't currently persisted server-side for kicks (only bans
+     * accept one) — kept in the signature for API symmetry with `ban()`.
      */
-    async kick(reason?: string): Promise<void> {
-        await this.client.apiCall(`/servers/${this.serverId}/members/${this.id}`, {
-            method: "DELETE",
-            body: JSON.stringify({ reason }),
-        });
+    async kick(_reason?: string): Promise<void> {
+        const socket = this.client.getSocket();
+        if (!socket) throw new BloumeChatAuthError("kick() requires an active connection — call login() first.");
+        await emitWithAck(socket, "server:kick", { serverPublicId: this.serverId, userPublicId: this.user.id });
     }
 
     /**
-     * Bans the member from the server.
+     * Bans the member from the server, over the same `server:ban` Socket.IO
+     * event the web app uses (there is no REST endpoint for this).
+     * @param options.deleteHistory How much of the banned user's recent message history to also delete.
      */
-    async ban(options?: { reason?: string; deleteMessageDays?: number }): Promise<void> {
-        await this.client.apiCall(`/servers/${this.serverId}/bans/${this.id}`, {
-            method: "PUT",
-            body: JSON.stringify(options),
+    async ban(options?: { reason?: string; deleteHistory?: "none" | "1d" | "7d" | "14d" | "30d" }): Promise<void> {
+        const socket = this.client.getSocket();
+        if (!socket) throw new BloumeChatAuthError("ban() requires an active connection — call login() first.");
+        await emitWithAck(socket, "server:ban", {
+            serverPublicId: this.serverId,
+            userPublicId: this.user.id,
+            reason: options?.reason,
+            deleteHistory: options?.deleteHistory,
         });
     }
 
@@ -97,7 +112,7 @@ export class Member extends Base {
      * Edits the member (e.g., roles, nickname).
      */
     async edit(data: { roles?: string[]; nickname?: string | null }): Promise<void> {
-        await this.client.apiCall(`/servers/${this.serverId}/members/${this.id}`, {
+        await this.client.apiCall(`/servers/${this.serverId}/members/${this.user.id}`, {
             method: "PATCH",
             body: JSON.stringify(data),
         });
@@ -131,5 +146,40 @@ export class Member extends Base {
         const currentRoleIds = this.roleIds();
         if (!currentRoleIds.includes(roleId)) return;
         return this.edit({ roles: currentRoleIds.filter(id => id !== roleId) });
+    }
+
+    /**
+     * Whether this member has the given role, matched by ID or (case-insensitive)
+     * name. Name matching requires the guild's role cache to be populated —
+     * call `guild.fetchRoles()` at least once first if roles were never fetched.
+     */
+    hasRole(roleIdOrName: string): boolean {
+        const ids = this.roleIds();
+        if (ids.includes(roleIdOrName)) return true;
+
+        const guild = this.client.guilds.cache.get(this.serverId);
+        if (!guild) return false;
+        const match = [...guild.roles.cache.values()].find(r => r.name.toLowerCase() === roleIdOrName.toLowerCase());
+        return match ? ids.includes(match.id) : false;
+    }
+
+    /** Whether this member is the server's owner. */
+    get isOwner(): boolean {
+        const guild = this.client.guilds.cache.get(this.serverId);
+        return guild ? guild.ownerId === this.user.id : false;
+    }
+
+    /**
+     * Sends this member a Direct Message — shorthand for
+     * `member.user.createDM()` followed by sending on the resulting channel.
+     */
+    async send(
+        content:
+            | string
+            | EmbedBuilder
+            | { content?: string; embeds?: Array<EmbedBuilder | EmbedPayload | Record<string, unknown>>; replyToId?: string }
+    ): Promise<Message> {
+        const dm = await this.user.createDM();
+        return this.client.sendMessage(dm.id, content);
     }
 }

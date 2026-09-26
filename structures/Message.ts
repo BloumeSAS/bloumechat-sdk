@@ -5,9 +5,11 @@ import type { Member } from "./Member";
 import { Channel } from "./Channel";
 import { EmbedBuilder, EmbedPayload } from "./EmbedBuilder";
 import { BloumeChatAuthError } from "../errors/BloumeChatAuthError";
+import { ReactionCollector, type ReactionCollectorOptions } from "./ReactionCollector";
 import type { ReactionUserDTO, MessageReactionEventData } from "./dto";
 
 export type { ReactionUserDTO, MessageReactionEventData } from "./dto";
+export { ReactionCollector, type ReactionCollectorOptions } from "./ReactionCollector";
 
 /**
  * Represents a message on BloumeChat.
@@ -180,7 +182,10 @@ export class Message extends Base {
     }
 
     /**
-     * Awaits reactions on the message.
+     * Awaits a single batch of reactions on the message, resolving with the
+     * last one collected (or `null` on timeout with no matches). For
+     * collecting every reaction over a longer window, use
+     * {@link Message.createReactionCollector} instead.
      * @param options max the maximum number of reactions, time the maximum time to wait in ms
      */
     awaitReactions(options: { max?: number; time?: number } = {}): Promise<MessageReactionEventData | null> {
@@ -193,18 +198,35 @@ export class Message extends Base {
                 : null;
 
             let count = 0;
-            const onReact = (data: any) => {
-                if (data.messagePublicId === this.id) {
-                    count++;
-                    if (options.max && count >= options.max) {
-                        if (timeout) clearTimeout(timeout);
-                        this.client.off("messageReactionAdd", onReact);
-                        resolve(data);
-                    }
+            let last: MessageReactionEventData | null = null;
+            const onReact = (reaction: any, user: User, messagePublicId: string) => {
+                if (messagePublicId !== this.id) return;
+                count++;
+                last = { messagePublicId, emoji: reaction.emoji, userPublicId: user.id };
+                if (options.max && count >= options.max) {
+                    if (timeout) clearTimeout(timeout);
+                    this.client.off("messageReactionAdd", onReact);
+                    resolve(last);
                 }
             };
 
             this.client.on("messageReactionAdd", onReact);
         });
+    }
+
+    /**
+     * Creates a {@link ReactionCollector} scoped to this message — fires
+     * `collect` for every matching `messageReactionAdd` until `time`/`max`
+     * is hit or `.stop()` is called.
+     *
+     * @example
+     * const collector = message.createReactionCollector({
+     *   filter: (reaction, user) => user.id === targetUserId,
+     *   time: 60_000,
+     * });
+     * collector.on('collect', (reaction, user) => { ... });
+     */
+    createReactionCollector(options?: ReactionCollectorOptions): ReactionCollector {
+        return new ReactionCollector(this.client, this.id, options);
     }
 }

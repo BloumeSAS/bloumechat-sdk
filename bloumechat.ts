@@ -14,10 +14,13 @@ import { EmbedBuilder, EmbedPayload } from "./structures/EmbedBuilder";
 import { RestManager, type ApiCallOptions } from "./rest/RestManager";
 import { GatewayManager } from "./gateway/GatewayManager";
 import { BloumeChatAuthError } from "./errors/BloumeChatAuthError";
+import { Collection } from "./util/Collection";
+import { loadCommandsFromDirectory, type Command } from "./util/loadCommands";
 import type { ActivityData, PresenceData, ClientEvents } from "./types";
 
 export type { ActivityData, PresenceData, ActivityUpdateData, ClientEvents } from "./types";
 export type { ApiCallOptions } from "./rest/RestManager";
+export type { Command } from "./util/loadCommands";
 
 const ALLOWED_HOSTS = new Set(["bloumechat.com", "api.bloumechat.com", "localhost"]);
 
@@ -47,6 +50,8 @@ export class BloumeChat extends EventEmitter {
     public voice: VoiceManager;
     /** Cache of every known user's current voice channel, built from `voice:*` gateway events. Prefer `member.voice`. */
     public voiceStates: VoiceStateManager;
+    /** Commands loaded via `loadCommands()`, keyed by name. Dispatching them on messages is up to the bot — the SDK only loads and stores them. */
+    public readonly commands = new Collection<string, Command>();
 
     /** Date the client first became ready (null before login) */
     public readyAt: Date | null = null;
@@ -392,6 +397,30 @@ export class BloumeChat extends EventEmitter {
         if (options?.limit) q.append("limit", options.limit.toString());
         const data = await this.apiCall(`/chat/${channelId}/search?${q.toString()}`);
         return (data.messages || []).map((m: any) => new Message(this, m));
+    }
+
+    // ─── Commands ────────────────────────────────────────────────────────────
+
+    /**
+     * Loads every command module in `directoryPath` into `client.commands`,
+     * replacing the fs.readdirSync + Map boilerplate bots otherwise have to
+     * write themselves. Can be called multiple times (e.g. once per plugin
+     * directory) — later loads add to `client.commands` rather than
+     * replacing it. Dispatching a matched command on `messageCreate` is left
+     * to the bot (prefix parsing, cooldowns, permission checks, etc. are all
+     * bot-specific conventions the SDK doesn't impose).
+     *
+     * @example
+     * await client.loadCommands(path.join(__dirname, 'commands'));
+     * client.on('messageCreate', message => {
+     *   const name = message.content.split(' ')[0].slice(1);
+     *   client.commands.get(name)?.execute(message, client);
+     * });
+     */
+    async loadCommands(directoryPath: string): Promise<Collection<string, Command>> {
+        const loaded = await loadCommandsFromDirectory(directoryPath);
+        for (const [name, command] of loaded) this.commands.set(name, command);
+        return this.commands;
     }
 
     // ─── Internals ────────────────────────────────────────────────────────────

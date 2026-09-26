@@ -5,6 +5,8 @@ import { Message } from "../structures/Message";
 import { Role } from "../structures/Role";
 import { Guild } from "../structures/Guild";
 import { Member } from "../structures/Member";
+import { User } from "../structures/User";
+import { ReactionDiffTracker, type ReactionSnapshotEntry } from "./ReactionDiffTracker";
 
 /**
  * Wires every "forward this socket event to the client" and cache-mutation
@@ -15,7 +17,19 @@ import { Member } from "../structures/Member";
  * `BloumeChat.login()`. This class is purely the dispatch table.
  */
 export class GatewayManager {
+    private readonly reactionTracker = new ReactionDiffTracker();
+
     constructor(private readonly client: BloumeChat) {}
+
+    /**
+     * Resolves a reaction event's user from the client's cache, falling back
+     * to a minimal `User` built from the name the reaction payload carries —
+     * the full user object usually isn't cached unless the bot has already
+     * seen this person elsewhere (a message, a member fetch, etc.).
+     */
+    private resolveReactionUser(userPublicId: string, userName: string | null): User {
+        return this.client.users.cache.get(userPublicId) || new User(this.client, { publicId: userPublicId, name: userName });
+    }
 
     /**
      * The real-time payloads for leave/kick/ban all identify the member by
@@ -45,9 +59,33 @@ export class GatewayManager {
             client.emit("message", message);
         });
         socket.on("message:updated", data => client.emit("messageUpdate", data));
-        socket.on("message:deleted", data => client.emit("messageDelete", data));
-        socket.on("message:reaction", data => client.emit("messageReactionAdd", data));
-        socket.on("message:reaction_clear", data => client.emit("messageReactionRemoveAll", data));
+        socket.on("message:deleted", data => {
+            client.emit("messageDelete", data);
+            this.reactionTracker.clear(data?.publicId);
+        });
+        socket.on("message:reaction", (data: { messagePublicId: string; reactions: ReactionSnapshotEntry[] }) => {
+            const { added, removed } = this.reactionTracker.diff(data.messagePublicId, data.reactions || []);
+            for (const delta of added) {
+                client.emit(
+                    "messageReactionAdd",
+                    delta.info,
+                    this.resolveReactionUser(delta.userPublicId, delta.userName),
+                    data.messagePublicId
+                );
+            }
+            for (const delta of removed) {
+                client.emit(
+                    "messageReactionRemove",
+                    delta.info,
+                    this.resolveReactionUser(delta.userPublicId, delta.userName),
+                    data.messagePublicId
+                );
+            }
+        });
+        socket.on("message:reaction_clear", data => {
+            client.emit("messageReactionRemoveAll", data);
+            this.reactionTracker.clear(data?.messagePublicId);
+        });
         socket.on("message:pinned", data => client.emit("messagePin", data));
 
         // ── Guilds ────────────────────────────────────────────────────

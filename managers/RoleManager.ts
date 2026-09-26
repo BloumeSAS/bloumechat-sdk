@@ -23,6 +23,18 @@ export class RoleManager extends BaseManager<string, Role> {
     }
 
     /**
+     * Returns the cached role if present, otherwise re-fetches all of the
+     * guild's roles (there's no single-role fetch endpoint) and returns the
+     * matching one. Returns `undefined` instead of throwing if the fetch fails
+     * or the role doesn't exist.
+     */
+    async getOrFetch(roleId: string): Promise<Role | undefined> {
+        if (this.cache.has(roleId)) return this.cache.get(roleId);
+        const roles = await this.guild.fetchRoles().catch(() => []);
+        return roles.find(r => r.id === roleId);
+    }
+
+    /**
      * Creates a new role in the guild.
      */
     async create(options: { name: string; color?: string; permissions?: bigint | string; hoist?: boolean }): Promise<Role> {

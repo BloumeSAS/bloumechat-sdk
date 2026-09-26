@@ -121,6 +121,60 @@ describe("GatewayManager", () => {
         expect(emitted.some(([event, data]) => event === "guildMemberUpdate" && data === cached)).toBe(true);
     });
 
+    it("diffs message:reaction snapshots into per-user messageReactionAdd/Remove events", () => {
+        const { client, emitted } = makeFakeClient();
+        const socket = makeFakeSocket();
+        new GatewayManager(client).attach(socket as any);
+
+        // First snapshot: user_1 reacted with 👍 — reported as an add.
+        socket.emit("message:reaction", {
+            messagePublicId: "msg_1",
+            reactions: [{ publicId: "r1", emoji: "👍", userPublicId: "user_1", userName: "Alice", messagePublicId: "msg_1" }],
+        });
+
+        const firstAdds = emitted.filter(([event]) => event === "messageReactionAdd");
+        expect(firstAdds).toHaveLength(1);
+        expect(firstAdds[0]![1]).toMatchObject({ emoji: "👍", messagePublicId: "msg_1", count: 1 });
+
+        // Second snapshot: user_1's 👍 is gone (removed), user_2 added 🎉 — only
+        // the actual deltas should fire, not a re-add of user_1's unrelated reaction.
+        emitted.length = 0;
+        socket.emit("message:reaction", {
+            messagePublicId: "msg_1",
+            reactions: [{ publicId: "r2", emoji: "🎉", userPublicId: "user_2", userName: "Bob", messagePublicId: "msg_1" }],
+        });
+
+        const removes = emitted.filter(([event]) => event === "messageReactionRemove");
+        const adds = emitted.filter(([event]) => event === "messageReactionAdd");
+        expect(removes).toHaveLength(1);
+        expect(adds).toHaveLength(1);
+        expect(removes[0]![1]).toMatchObject({ emoji: "👍" });
+        expect(adds[0]![1]).toMatchObject({ emoji: "🎉" });
+    });
+
+    it("clears reaction tracker state on message:deleted and message:reaction_clear", () => {
+        const { client, emitted } = makeFakeClient();
+        const socket = makeFakeSocket();
+        new GatewayManager(client).attach(socket as any);
+
+        socket.emit("message:reaction", {
+            messagePublicId: "msg_1",
+            reactions: [{ publicId: "r1", emoji: "👍", userPublicId: "user_1", userName: "Alice", messagePublicId: "msg_1" }],
+        });
+        emitted.length = 0;
+
+        // After a clear, the same reaction reappearing should be reported as a
+        // fresh add again — proving the tracker forgot the prior state.
+        socket.emit("message:reaction_clear", { messagePublicId: "msg_1" });
+        socket.emit("message:reaction", {
+            messagePublicId: "msg_1",
+            reactions: [{ publicId: "r1", emoji: "👍", userPublicId: "user_1", userName: "Alice", messagePublicId: "msg_1" }],
+        });
+
+        const adds = emitted.filter(([event]) => event === "messageReactionAdd");
+        expect(adds).toHaveLength(1);
+    });
+
     it("patches the cached user's username on user:update and status on presence:update", () => {
         const { client } = makeFakeClient();
         const socket = makeFakeSocket();

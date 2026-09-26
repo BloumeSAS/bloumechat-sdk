@@ -8,6 +8,8 @@ import { Category } from "./Category";
 import { Channel } from "./Channel";
 import { Emoji } from "./Emoji";
 import { BloumeChatAuthError } from "../errors/BloumeChatAuthError";
+import { emitWithAck } from "../gateway/emitWithAck";
+import type { Member } from "./Member";
 import type { MemberSearchResultDTO, BanDTO, GuildInviteDTO, AuditLogEntryDTO } from "./dto";
 
 export type { MemberSearchResultDTO, BanDTO, GuildInviteDTO, AuditLogEntryDTO } from "./dto";
@@ -140,6 +142,11 @@ export class Guild extends Base {
         return data.members || [];
     }
 
+    /** Fetches the server owner's member object. */
+    async fetchOwner(): Promise<Member> {
+        return this.client.members.fetch(this.id, this.ownerId);
+    }
+
     // ─── Bans ────────────────────────────────────────────────────────────────
 
     /** Fetches all banned users. */
@@ -150,8 +157,9 @@ export class Guild extends Base {
 
     /** Lifts the ban of a user by their public ID. */
     async unbanMember(userId: string): Promise<void> {
-        if (!this.client.getSocket()) throw new BloumeChatAuthError("unbanMember() requires an active connection — call login() first.");
-        this.client.getSocket()?.emit("server:unban", { serverPublicId: this.id, userPublicId: userId });
+        const socket = this.client.getSocket();
+        if (!socket) throw new BloumeChatAuthError("unbanMember() requires an active connection — call login() first.");
+        await emitWithAck(socket, "server:unban", { serverPublicId: this.id, userPublicId: userId });
     }
 
     // ─── Roles ───────────────────────────────────────────────────────────────

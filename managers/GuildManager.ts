@@ -43,6 +43,15 @@ export class GuildManager extends BaseManager<string, Guild> {
     }
 
     /**
+     * Returns the cached guild if present, otherwise fetches it. Returns
+     * `undefined` instead of throwing if the fetch fails (e.g. the bot isn't
+     * in that server) — use `fetch()` directly if you need the error.
+     */
+    async getOrFetch(id: string): Promise<Guild | undefined> {
+        return this.cache.get(id) ?? (await this.fetch(id).catch(() => undefined));
+    }
+
+    /**
      * Programmatically creates a new server (guild).
      * @param options The metadata for the guild.
      */

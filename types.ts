@@ -2,6 +2,8 @@ import type { Message } from "./structures/Message";
 import type { Role } from "./structures/Role";
 import type { Guild } from "./structures/Guild";
 import type { Member } from "./structures/Member";
+import type { User } from "./structures/User";
+import type { ReactionInfo } from "./gateway/ReactionDiffTracker";
 import type {
     VoiceIncomingCallData,
     VoiceCallCancelledData,
@@ -25,6 +27,7 @@ export type {
     AudioResource,
     VoiceConnectionState,
 } from "./voice/types";
+export type { ReactionInfo } from "./gateway/ReactionDiffTracker";
 
 export interface ActivityData {
     type: "using" | "browsing" | "listening" | "playing";
@@ -58,7 +61,10 @@ export interface ClientEvents {
     messageCreate: [message: Message];
     messageUpdate: [data: any];
     messageDelete: [data: any];
-    messageReactionAdd: [data: any];
+    /** Fired once per user who added `reaction.emoji` to a message (diffed from the server's full reaction-list snapshot — see `ReactionDiffTracker`). */
+    messageReactionAdd: [reaction: ReactionInfo, user: User, messagePublicId: string];
+    /** Fired once per user who removed `reaction.emoji` from a message. */
+    messageReactionRemove: [reaction: ReactionInfo, user: User, messagePublicId: string];
     messageReactionRemoveAll: [data: any];
     messagePin: [data: any];
 

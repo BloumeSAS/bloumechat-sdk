@@ -34,6 +34,9 @@ export * from "./managers/VoiceStateManager";
 // Voice
 export * from "./voice";
 
+// Gateway
+export type { ReactionInfo } from "./gateway/ReactionDiffTracker";
+
 // Utilities
 export * from "./util/Permissions";
 export * from "./util/Collection";

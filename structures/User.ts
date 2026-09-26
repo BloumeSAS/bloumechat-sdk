@@ -1,6 +1,8 @@
 import { Base } from "./Base";
 import { BloumeChat } from "../bloumechat";
 import type { MutualServerDTO } from "./dto";
+import type { Message } from "./Message";
+import type { EmbedBuilder, EmbedPayload } from "./EmbedBuilder";
 
 export type { MutualServerDTO } from "./dto";
 
@@ -94,5 +96,19 @@ export class User extends Base {
      */
     async createDM() {
         return this.client.createDM(this.id);
+    }
+
+    /**
+     * Sends this user a Direct Message — shorthand for `createDM()` followed
+     * by sending on the resulting channel.
+     */
+    async send(
+        content:
+            | string
+            | EmbedBuilder
+            | { content?: string; embeds?: Array<EmbedBuilder | EmbedPayload | Record<string, unknown>>; replyToId?: string }
+    ): Promise<Message> {
+        const dm = await this.createDM();
+        return this.client.sendMessage(dm.id, content);
     }
 }
