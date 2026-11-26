@@ -1,4 +1,4 @@
-# Contributing to bloumechat
+# Contributing to @bloume/chat
 
 Thanks for considering a contribution! This SDK is used by real bots in production, so the bar is: **don't break the public API, keep it tested, keep it typed.**
 

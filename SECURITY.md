@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Only the latest published version on npm is supported. Since releases publish automatically on every version bump (see [publish.yml](.github/workflows/publish.yml)), staying current is just `npm update bloumechat`.
+Only the latest published version on npm is supported. Since releases publish automatically on every version bump (see [publish.yml](.github/workflows/publish.yml)), staying current is just `npm update @bloume/chat`.
 
 ## Reporting a Vulnerability
 
@@ -27,4 +27,4 @@ Please include:
 
 ## Scope
 
-This policy covers the `bloumechat` npm package (this repository). For vulnerabilities in the BloumeChat platform itself (the API, the web/desktop/mobile apps), please contact **security@bloume.fr** directly rather than filing them here.
+This policy covers the `@bloume/chat` npm package (this repository). For vulnerabilities in the BloumeChat platform itself (the API, the web/desktop/mobile apps), please contact **security@bloume.fr** directly rather than filing them here.

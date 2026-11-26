@@ -7,7 +7,7 @@ assignees: ""
 ---
 
 **SDK version**
-<!-- `npm ls bloumechat`, or check package.json -->
+<!-- `npm ls @bloume/chat`, or check package.json -->
 
 **Node version**
 <!-- `node -v` -->

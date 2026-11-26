@@ -9,10 +9,10 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/bloumechat"><img src="https://img.shields.io/npm/v/bloumechat.svg" alt="NPM Version" /></a>
-  <a href="https://www.npmjs.com/package/bloumechat"><img src="https://img.shields.io/npm/dm/bloumechat.svg" alt="NPM Downloads" /></a>
+  <a href="https://www.npmjs.com/package/@bloume/chat"><img src="https://img.shields.io/npm/v/@bloume/chat.svg" alt="NPM Version" /></a>
+  <a href="https://www.npmjs.com/package/@bloume/chat"><img src="https://img.shields.io/npm/dm/@bloume/chat.svg" alt="NPM Downloads" /></a>
   <a href="https://github.com/BloumeSAS/bloumechat-sdk/actions/workflows/ci.yml"><img src="https://github.com/BloumeSAS/bloumechat-sdk/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://www.npmjs.com/package/bloumechat"><img src="https://img.shields.io/badge/provenance-verified-brightgreen?logo=npm" alt="npm provenance verified" /></a>
+  <a href="https://www.npmjs.com/package/@bloume/chat"><img src="https://img.shields.io/badge/provenance-verified-brightgreen?logo=npm" alt="npm provenance verified" /></a>
   <a href="https://opensource.org/licenses/ISC"><img src="https://img.shields.io/badge/License-ISC-blue.svg" alt="License: ISC" /></a>
   <a href="https://dev.bloume.chat"><img src="https://img.shields.io/badge/docs-dev.bloume.chat-d946ef.svg" alt="Documentation" /></a>
   <a href="https://github.com/JulesZYTB/bloumechat-bot-starter"><img src="https://img.shields.io/badge/Template-Bot_Starter-success.svg" alt="Bot Template" /></a><br/><br/>
@@ -30,14 +30,14 @@ To get started quickly, we provide an official **Bot Starter Template** containi
 Or, you can install the SDK manually via npm:
 
 ```bash
-npm install bloumechat
+npm install @bloume/chat
 ```
 
 ---
 
 ## 🔒 Provenance & Supply Chain Security
 
-Every published version of `bloumechat` is **built and signed on GitHub Actions** using [npm provenance](https://docs.npmjs.com/generating-provenance-statements) (backed by [Sigstore](https://www.sigstore.dev/) and the [SLSA](https://slsa.dev/) framework). This gives you a publicly verifiable, cryptographic link between the code on npm and the exact source commit and workflow run that produced it — no manual `npm publish` from a local machine, ever.
+Every published version of `@bloume/chat` is **built and signed on GitHub Actions** using [npm provenance](https://docs.npmjs.com/generating-provenance-statements) (backed by [Sigstore](https://www.sigstore.dev/) and the [SLSA](https://slsa.dev/) framework). This gives you a publicly verifiable, cryptographic link between the code on npm and the exact source commit and workflow run that produced it — no manual `npm publish` from a local machine, ever.
 
 | | |
 |---|---|
@@ -49,10 +49,10 @@ Every published version of `bloumechat` is **built and signed on GitHub Actions*
 You can verify the provenance of any published version yourself:
 
 ```bash
-npm view bloumechat --json | grep -A 10 attestations
+npm view @bloume/chat --json | grep -A 10 attestations
 ```
 
-Or check the **"Provenance"** panel directly on the [npm package page](https://www.npmjs.com/package/bloumechat) — it links to the exact commit, workflow file, and transparency log entry for every release.
+Or check the **"Provenance"** panel directly on the [npm package page](https://www.npmjs.com/package/@bloume/chat) — it links to the exact commit, workflow file, and transparency log entry for every release.
 
 ---
 
@@ -67,7 +67,7 @@ Or check the **"Provenance"** panel directly on the [npm package page](https://w
 ## ✍️ Example
 
 ```typescript
-import { BloumeChat } from "bloumechat";
+import { BloumeChat } from "@bloume/chat";
 
 const client = new BloumeChat();
 

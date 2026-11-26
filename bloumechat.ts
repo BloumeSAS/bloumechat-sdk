@@ -30,7 +30,7 @@ const ALLOWED_HOSTS = new Set(["bloumechat.com", "api.bloumechat.com", "localhos
  * The main hub for interacting with the BloumeChat API and WebSocket.
  *
  * @example
- * const { BloumeChat } = require('bloumechat');
+ * const { BloumeChat } = require('@bloume/chat');
  * const client = new BloumeChat();
  * client.on('ready', () => console.log('Ready!'));
  * client.login(process.env.BOT_TOKEN);

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Package renamed from `bloumechat` to `@bloume/chat`** under the official `bloume` npm organization (`publishConfig.access = "public"`). Update your dependencies and imports from `"bloumechat"` to `"@bloume/chat"`.
+
 ## [4.2.0] - 2026-09-26
 
 ### Fixed
